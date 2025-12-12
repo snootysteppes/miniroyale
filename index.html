@@ -772,23 +772,24 @@ board.addEventListener('drop', e=>{
 
   // Smart placement for Skeleton Army - target nearest enemy troop
   if(card.id === 'skeletons' || card.name === 'Skeleton Army'){
-    const detectionRadius = 120;
+    const detectionRadius = 200; // Increased radius for better detection
     let nearestEnemy = null;
     let nearestDist = Infinity;
 
-    // Find nearest enemy troop
+    // Find nearest enemy troop (not buildings or towers)
     for(const u of units){
-      if(u.side === 'red'){
+      if(u.side === 'red' && u.hp > 0){
         const d = Math.hypot(u.x - x, u.y - y);
-        if(d <= detectionRadius && d < nearestDist){
+        if(d < nearestDist){
           nearestDist = d;
           nearestEnemy = u;
         }
       }
     }
 
-    // If enemy troop found nearby, spawn on top of it
-    if(nearestEnemy){
+    // If enemy troop found within detection radius, spawn directly on it
+    // Otherwise spawn at clicked location
+    if(nearestEnemy && nearestDist <= detectionRadius){
       spawn(card,'blue', nearestEnemy.x, nearestEnemy.y);
     } else {
       spawn(card,'blue',x,y);
