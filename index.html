@@ -2856,6 +2856,7 @@ function aiDefensiveCheck() {
   if(!primaryThreat) return false;
 
   // State transition: enter DEFEND mode if threat is significant
+  // Only transition to DEFEND if not already defending to avoid state flapping
   if(highestThreat >= 10 && aiCurrentState !== AIState.DEFEND) {
     aiCurrentState = AIState.DEFEND;
     aiLastStateChange = now;
@@ -2942,10 +2943,13 @@ function aiOffensivePush() {
   const x = lane === 0 ? lx : rx;
   const y = board.clientHeight * 0.25;
 
-  // State transition: enter PUSH mode
-  aiCurrentState = AIState.PUSH;
-  aiLastStateChange = now;
-  aiElixirInvestment = 0;
+  // State transition: enter PUSH mode only if not already pushing or defending
+  // This prevents overlapping pushes and respects defensive priority
+  if(aiCurrentState === AIState.CYCLE || aiCurrentState === AIState.COUNTER) {
+    aiCurrentState = AIState.PUSH;
+    aiLastStateChange = now;
+    aiElixirInvestment = 0;
+  }
 
   // Choose push composition based on elixir
   let tankCard = null;
@@ -3115,9 +3119,60 @@ function aiDecideAndAct() {
   if(gameOver) return;
   const now = performance.now() / 1000;
 
-  // Priority 1: Defense (always check first)
-  if(aiDefensiveCheck()) {
+  // Priority 1: Defense (always check first, overrides all other states)
+  const defendedSuccessfully = aiDefensiveCheck();
+  if(defendedSuccessfully) {
     return; // Handled a defensive action
+  }
+
+  // State transition: After successful defense with no immediate threats, transition to COUNTER
+  // COUNTER state allows AI to capitalize on elixir advantage after repelling enemy push
+  if(aiCurrentState === AIState.DEFEND && now - aiLastStateChange > 2.0) {
+    // Check if threats are cleared (no enemy units near our towers)
+    const redTowerIds = ['redLeft', 'redRight', 'redKing'];
+    let hasNearbyThreats = false;
+    for(const tid of redTowerIds) {
+      const tPos = towerPos(tid);
+      const nearbyEnemies = units.filter(u => {
+        if(u.side !== 'blue') return false;
+        const dist = Math.hypot(u.x - tPos.x, u.y - tPos.y);
+        return dist < 200;
+      });
+      if(nearbyEnemies.length > 0) {
+        hasNearbyThreats = true;
+        break;
+      }
+    }
+
+    // Transition to COUNTER if threats cleared, otherwise to CYCLE
+    if(!hasNearbyThreats) {
+      aiCurrentState = aiElixir >= 5 ? AIState.COUNTER : AIState.CYCLE;
+      aiLastStateChange = now;
+    }
+  }
+
+  // State transition: Exit COUNTER state after window expires (5 seconds)
+  // COUNTER window is time-limited to create urgency for counter-attacks
+  if(aiCurrentState === AIState.COUNTER && now - aiLastStateChange > 5.0) {
+    aiCurrentState = AIState.CYCLE;
+    aiLastStateChange = now;
+  }
+
+  // State transition: Exit PUSH state when push units are dead or reached target
+  // This prevents AI from thinking it's pushing when the push has failed/succeeded
+  if(aiCurrentState === AIState.PUSH && now - aiLastPushTime > 8.0) {
+    // Check if any of our push units are still alive and advancing
+    const activePushUnits = units.filter(u =>
+      u.side === 'red' &&
+      (u.type === 'giant' || u.type === 'megaknight' || u.type === 'knight')
+    );
+
+    if(activePushUnits.length === 0) {
+      // Push is over, return to CYCLE
+      aiCurrentState = AIState.CYCLE;
+      aiLastStateChange = now;
+      aiElixirInvestment = 0;
+    }
   }
 
   // Priority 2: Opportunistic spells for value
@@ -3130,19 +3185,23 @@ function aiDecideAndAct() {
     return;
   }
 
-  // Priority 4: Support existing pushes
-  if(aiSupportPush()) {
+  // Priority 4: Support existing pushes (higher priority in PUSH state)
+  if(aiCurrentState === AIState.PUSH && aiSupportPush()) {
     return;
   }
 
   // Priority 5: Build offensive push
-  if(aiOffensivePush()) {
+  // COUNTER state gets priority for counter-attacks, otherwise check elixir threshold
+  const shouldPush = aiCurrentState === AIState.COUNTER ||
+                     (aiCurrentState === AIState.CYCLE && aiElixir >= AI_PUSH_THRESHOLD);
+
+  if(shouldPush && aiOffensivePush()) {
     return;
   }
 
-  // State decay: return to CYCLE if no threats for a while
-  if(aiCurrentState === AIState.DEFEND && now - aiLastStateChange > 4.0) {
-    aiCurrentState = AIState.CYCLE;
+  // Priority 6: Support pushes even when not in PUSH state (lower priority)
+  if(aiCurrentState !== AIState.PUSH && aiSupportPush()) {
+    return;
   }
 
   // Priority 6: Card cycling at high elixir (avoid waste)
