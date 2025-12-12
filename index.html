@@ -324,7 +324,7 @@ const allCards = [
   { id:'royalghost', name:'Royal Ghost', cost:3, hp:200, dmg:25, range:80, speed:45, emoji:'G', type:'stealth', targets:'ground', stealth:true },
   { id:'bomber', name:'Bomber', cost:5, hp:500, dmg:100, range:30, speed:30, emoji:'💣', type:'splash', targets:'ground', splashRadius:40 },
   { id:'witch', name:'Witch', cost:5, hp:400, dmg:35, range:50, speed:35, emoji:'🧙', type:'summoner', targets:'airground', summonInterval:5, summonType:'skeleton' },
-  { id:'hogrider', name:'Hog Rider', cost:4, hp:700, dmg:120, range:30, speed:50, emoji:'🐗', target:'building', type:'jumper', targets:'ground', jumpsRiver:true },
+  { id:'hogrider', name:'Hog Rider', cost:4, hp:700, dmg:120, range:30, speed:50, emoji:'🐗', target:'building', type:'hogrider', targets:'ground', jumpsRiver:true },
   { id:'valkyrie', name:'Valkyrie', cost:4, hp:880, dmg:82, range:40, speed:35, emoji:'V', type:'melee', targets:'ground', splashRadius:60, splash360:true },
   { id:'bowler', name:'Bowler', cost:5, hp:1300, dmg:65, range:45, speed:30, emoji:'🎳', type:'melee', targets:'ground', splashRadius:30, pierce:true, knockback:20 },
   { id:'executioner', name:'Executioner', cost:5, hp:770, dmg:65, range:50, speed:35, emoji:'⚔️', type:'ranged', targets:'airground', boomerang:true, splashRadius:40 },
@@ -1313,12 +1313,12 @@ function acquireTargetForUnit(u){
   }
 
   // Normal unit targeting
-  if(u.type !== 'giant' && u.type !== 'megaknight' && u.target !== 'building'){
+  if(u.type !== 'giant' && u.type !== 'megaknight' && u.type !== 'hogrider' && u.target !== 'building'){
     const enemyUnit = nearestEnemyInRadius(u, u.range + 6);
     if(enemyUnit){ u.targetId = enemyUnit.id; return; }
   }
 
-  if(u.type === 'giant' || u.type === 'megaknight' || u.target === 'building'){
+  if(u.type === 'giant' || u.type === 'megaknight' || u.type === 'hogrider' || u.target === 'building'){
     const nb = nearestEnemyBuilding(u, 260);
     if(nb){ u.targetId = nb.id; return; }
   }
@@ -1327,7 +1327,10 @@ function acquireTargetForUnit(u){
   const pos = towerPos(tid);
   const horizontalDist = Math.abs(pos.x - u.x);
   let attackThreshold = u.range + 6;
-  if(tid.toLowerCase().includes('king')) attackThreshold = Math.max(6, u.range - 20);
+  if(tid.toLowerCase().includes('king')) {
+    // Troops must walk very close to king tower
+    attackThreshold = 20;
+  }
   if(Math.abs(pos.y - u.y) <= attackThreshold && horizontalDist <= 48) u.targetId = tid;
   else u.targetId = null;
 }
@@ -2017,17 +2020,17 @@ function tickUnit(u, dt){
       if(towers[u.targetId] && towers[u.targetId].hp > 0){
         const pos = towerPos(u.targetId);
         const horizontalDist = Math.abs(pos.x - u.x);
-        if(horizontalDist > 48 && u.type !== 'giant' && u.type !== 'megaknight'){
+        if(horizontalDist > 48 && u.type !== 'giant' && u.type !== 'megaknight' && u.type !== 'hogrider'){
           const [lx,rx] = laneXs();
           const targetX = u.lane === 0 ? lx : rx;
           u.x += (targetX - u.x) * Math.min(1, dt * 6);
         }
-        
+
         if(now - u.lastAttack > u.attackSpeed) {
           u.lastAttack = now;
-          
+
           let towerFactor = BASE_TOWER_FACTOR;
-          if(u.type === 'giant' || u.type === 'megaknight') towerFactor = GIANT_TOWER_MULT;
+          if(u.type === 'giant' || u.type === 'megaknight' || u.type === 'hogrider') towerFactor = GIANT_TOWER_MULT;
           if(u.type === 'swarm' || u.type === 'skeleton') towerFactor = SKEL_TOWER_MULT;
           if(u.type === 'goblin') towerFactor = 1.5;
           
@@ -2111,7 +2114,7 @@ function tickUnit(u, dt){
             updateUnitHP(target);
             if(target.hp <= 0) removeUnit(target.id);
 
-            if(units.find(v=>v.id===target.id) && target.type !== 'giant' && target.type !== 'megaknight'){
+            if(units.find(v=>v.id===target.id) && target.type !== 'giant' && target.type !== 'megaknight' && target.type !== 'hogrider'){
               if(Math.hypot(target.x - u.x, target.y - u.y) <= target.range + 6){
                 u.hp -= target.dmg * dt * 1.4;
                 updateUnitHP(u);
@@ -2130,11 +2133,11 @@ function tickUnit(u, dt){
   }
 
   // Acquire new target if none
-  if(u.type !== 'giant' && u.type !== 'megaknight' && u.target !== 'building'){
+  if(u.type !== 'giant' && u.type !== 'megaknight' && u.type !== 'hogrider' && u.target !== 'building'){
     const enemy = nearestEnemyInRadius(u, u.range + 6);
     if(enemy){ u.targetId = enemy.id; return; }
   }
-  if(u.type === 'giant' || u.type === 'megaknight' || u.target === 'building'){
+  if(u.type === 'giant' || u.type === 'megaknight' || u.type === 'hogrider' || u.target === 'building'){
     const nb = nearestEnemyBuilding(u, 260);
     if(nb){ u.targetId = nb.id; return; }
   }
@@ -2188,7 +2191,10 @@ function tickUnit(u, dt){
   else { if(u.y >= pos.y - offset) reached = true; }
 
   let attackThreshold = u.range + 6;
-  if(tid.toLowerCase().includes('king')) attackThreshold = Math.max(6, u.range - 20);
+  if(tid.toLowerCase().includes('king')) {
+    // Troops must walk very close to king tower
+    attackThreshold = 20;
+  }
   const withinThreshold = Math.abs(pos.y - u.y) <= attackThreshold && horizontalDist <= 48;
 
   const enemySide = u.side === 'blue' ? 'red' : 'blue';
@@ -2709,6 +2715,7 @@ function assessThreatLevel(unit) {
   const baseThreats = {
     giant: 8,        // High HP tank
     megaknight: 9,   // Very dangerous
+    hogrider: 8,     // High threat building targeter
     knight: 5,       // Medium threat
     swarm: 6,        // Swarm units are dangerous in groups
     skeleton: 6,
@@ -2779,14 +2786,14 @@ function getCounter(enemy) {
   const spawnY = towerPos(tid).y + 30;
 
   // Counter logic based on enemy type
-  if(enemy.type === 'giant' || enemy.type === 'megaknight') {
-    // Use swarm against tanks
+  if(enemy.type === 'giant' || enemy.type === 'megaknight' || enemy.type === 'hogrider') {
+    // Use swarm against tanks - spawn directly on the enemy unit
     return {
       type: 'spawn',
       cost: 3,
       action: () => spawn(
         { id:'skeletons', name:'Skeleton Army', cost:3, hp:40, dmg:14, range:28, speed:50, emoji:'S', count:8, type:'swarm' },
-        'red', x, spawnY
+        'red', enemy.x, enemy.y
       )
     };
   }
@@ -3093,7 +3100,7 @@ function aiReactiveBuilding() {
   const heavyUnitsNearBridge = units.filter(u =>
     u.side === 'blue' &&
     Math.abs(u.y - bridgeY) < 150 &&
-    (u.type === 'giant' || u.type === 'megaknight' || u.hp > 300)
+    (u.type === 'giant' || u.type === 'megaknight' || u.type === 'hogrider' || u.hp > 300)
   );
 
   if(heavyUnitsNearBridge.length > 0 && aiElixir >= 4) {
@@ -3228,7 +3235,7 @@ function aiDecideAndAct() {
     // Check if any of our push units are still alive and advancing
     const activePushUnits = units.filter(u =>
       u.side === 'red' &&
-      (u.type === 'giant' || u.type === 'megaknight' || u.type === 'knight')
+      (u.type === 'giant' || u.type === 'megaknight' || u.type === 'hogrider' || u.type === 'knight')
     );
 
     if(activePushUnits.length === 0) {
