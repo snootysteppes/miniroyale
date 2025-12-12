@@ -830,6 +830,22 @@ function openDeckEditor() {
     deckSlots = [null, null, null, null, null, null, null, null];
   }
 
+  // Normalize deck slots - remove duplicates and invalid cards
+  const seenCardIds = new Set();
+  for (let i = 0; i < deckSlots.length; i++) {
+    if (deckSlots[i]) {
+      // Check if card exists in allCards
+      const cardExists = allCards.find(c => c.id === deckSlots[i].id);
+      if (!cardExists) {
+        deckSlots[i] = null; // Remove invalid card
+      } else if (seenCardIds.has(deckSlots[i].id)) {
+        deckSlots[i] = null; // Remove duplicate card
+      } else {
+        seenCardIds.add(deckSlots[i].id);
+      }
+    }
+  }
+
   renderDeckEditor();
 }
 
@@ -860,6 +876,7 @@ function renderDeckEditor() {
       `;
 
       previewEl.addEventListener('dragstart', onDeckCardDragStart);
+      previewEl.addEventListener('dragend', onDeckCardDragEnd);
       previewEl.addEventListener('dblclick', () => removeCardFromSlot(i));
       slotEl.appendChild(previewEl);
     } else {
@@ -888,6 +905,7 @@ function renderDeckEditor() {
     } else {
       cardEl.draggable = true;
       cardEl.addEventListener('dragstart', onCardDragStart);
+      cardEl.addEventListener('dragend', onCardDragEnd);
     }
 
     cardEl.innerHTML = `
@@ -916,6 +934,23 @@ function onDeckCardDragStart(e) {
   e.dataTransfer.effectAllowed = 'move';
 }
 
+function onCardDragEnd(e) {
+  // Clean up any drag-over visual states
+  document.querySelectorAll('.card-slot.drag-over').forEach(el => {
+    el.classList.remove('drag-over');
+  });
+}
+
+function onDeckCardDragEnd(e) {
+  // Clean up any drag-over visual states
+  document.querySelectorAll('.card-slot.drag-over').forEach(el => {
+    el.classList.remove('drag-over');
+  });
+
+  // Force re-render to ensure state consistency after drag operation
+  renderDeckEditor();
+}
+
 function onSlotDragOver(e) {
   e.preventDefault();
   e.currentTarget.classList.add('drag-over');
@@ -935,22 +970,39 @@ function onSlotDrop(e) {
 
   // Find the card
   const card = allCards.find(c => c.id === cardId);
-  if (!card) return;
+  if (!card) {
+    // Clear drag data and re-render to ensure consistency
+    e.dataTransfer.clearData();
+    renderDeckEditor();
+    return;
+  }
 
   // If dragging from another slot, swap or move
   if (fromSlot !== null && fromSlot !== undefined && fromSlot !== '') {
     const fromIndex = parseInt(fromSlot);
-    const temp = deckSlots[slotIndex];
-    deckSlots[slotIndex] = deckSlots[fromIndex];
-    deckSlots[fromIndex] = temp;
+
+    // Validate fromIndex
+    if (fromIndex >= 0 && fromIndex < 8 && fromIndex !== slotIndex) {
+      const temp = deckSlots[slotIndex];
+      deckSlots[slotIndex] = deckSlots[fromIndex];
+      deckSlots[fromIndex] = temp;
+    }
   } else {
     // Adding from card selection - only if not already in deck
     const alreadyInDeck = deckSlots.some(c => c && c.id === cardId);
     if (!alreadyInDeck) {
       deckSlots[slotIndex] = card;
+    } else {
+      // Card already in deck, just re-render to show correct state
+      renderDeckEditor();
+      return;
     }
   }
 
+  // Clear drag data to prevent stale state
+  e.dataTransfer.clearData();
+
+  // Force synchronization by re-rendering
   renderDeckEditor();
 }
 
