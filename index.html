@@ -2841,13 +2841,6 @@ function aiDefensiveCheck() {
     const t = towers[tid];
     const tPos = towerPos(tid);
 
-    // Tower is under pressure if recently damaged or low HP
-    const isUnderPressure =
-      (t.lastDamagedAt && (now - t.lastDamagedAt) < 2.0) ||
-      (t.hp < (TOWER_MAX.crown * 0.6));
-
-    if(!isUnderPressure) continue;
-
     // Find threats near this tower
     const nearbyEnemies = units.filter(u => {
       if(u.side !== 'blue') return false;
@@ -2861,6 +2854,16 @@ function aiDefensiveCheck() {
     let totalThreat = 0;
     for(const e of nearbyEnemies) {
       totalThreat += assessThreatLevel(e);
+    }
+
+    // Increase priority if tower is under pressure (recently damaged or low HP)
+    const isUnderPressure =
+      (t.lastDamagedAt && (now - t.lastDamagedAt) < 2.0) ||
+      (t.hp < (TOWER_MAX.crown * 0.6));
+
+    // Boost threat assessment for towers already under pressure
+    if(isUnderPressure) {
+      totalThreat *= 1.5;
     }
 
     if(totalThreat > highestThreat) {
