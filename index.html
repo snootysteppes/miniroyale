@@ -222,6 +222,7 @@
     <div class="bottomHalf" id="bottomHalf"></div>
     <div class="aimRing" id="aimRing"></div>
     <div class="score" id="score">Blue 0 | Red 0</div>
+    <div class="score" id="trophyInfo" style="top:35px;font-size:11px;color:#f7c948;">🏆 0</div>
   </div>
 
   <div id="bottomUI">
@@ -251,6 +252,14 @@
           <div style="font-size:24px;font-weight:bold;color:#f7c948;">💰 <span id="coinDisplay">0</span></div>
           <div style="font-size:12px;color:#cbd5e1;margin-top:5px;" id="recordDisplay">0W - 0L</div>
         </div>
+      </div>
+
+      <div style="background:rgba(74,111,165,0.15);border-radius:8px;padding:12px;margin:15px 0;font-size:12px;color:#cbd5e1;text-align:left;">
+        <div style="font-weight:bold;margin-bottom:5px;color:#eaf4ff;">⚡ Progression System</div>
+        • Win matches to earn trophies (+30) and coins (+50)<br>
+        • Higher trophies = stronger AI opponents & increased tower HP<br>
+        • Upgrade troops with coins for +10% HP/DMG per level<br>
+        • Card levels displayed in-game and on cards
       </div>
 
       <div class="menu-button" onclick="startGame()">⚔️ Start Match</div>
@@ -682,7 +691,12 @@ let playerElixir = 5, aiElixir = 5;
 function updateElixir(dt){
   if(gameOver) return;
   playerElixir = Math.min(10, playerElixir + dt * PLAYER_ELIXIR_REGEN);
-  aiElixir = Math.min(10, aiElixir + dt * AI_ELIXIR_REGEN);
+
+  // AI elixir regen scales with difficulty (up to +50% at max league)
+  const aiDifficultyMultiplier = getAIDifficultyMultiplier();
+  const aiElixirRate = AI_ELIXIR_REGEN * (1 + (aiDifficultyMultiplier - 0.8) * 0.5);
+  aiElixir = Math.min(10, aiElixir + dt * aiElixirRate);
+
   elixirFill.style.width = (playerElixir/10*100) + '%';
   elixirLabel.textContent = `Elixir ${Math.floor(playerElixir)} / 10`;
 }
@@ -719,6 +733,14 @@ function initializeGame() {
   crownsBlue = 0;
   crownsRed = 0;
   scoreEl.textContent = 'Blue 0 | Red 0';
+
+  // Update trophy info display
+  const league = getTrophyLeague();
+  const aiDiffMultiplier = getAIDifficultyMultiplier();
+  const trophyInfoEl = document.getElementById('trophyInfo');
+  if(trophyInfoEl) {
+    trophyInfoEl.textContent = `🏆 ${playerStats.trophies} · ${league.name} · AI ${Math.round(aiDiffMultiplier * 100)}%`;
+  }
 
   // Reset towers with trophy bonuses
   const towerHP = initializeTowerHP();
@@ -766,7 +788,17 @@ function drawHand(){
     }
 
     const nameEl = document.createElement('div'); nameEl.className='cardName'; nameEl.textContent = c.name;
-    const costEl = document.createElement('div'); costEl.className='cardCost'; costEl.textContent = `Cost ${c.cost}`;
+
+    // Show level and cost for troops, just cost for spells/buildings
+    const level = getCardLevel(c.id);
+    const costEl = document.createElement('div');
+    costEl.className='cardCost';
+    if(!c.spell && !c.building && level > 1) {
+      costEl.innerHTML = `<span style="color:#f7c948;font-weight:bold;">Lv${level}</span> · Cost ${c.cost}`;
+    } else {
+      costEl.textContent = `Cost ${c.cost}`;
+    }
+
     cardEl.appendChild(nameEl); cardEl.appendChild(costEl);
     cardEl.draggable = true;
     cardEl.dataset.cardId = c.id;
@@ -815,7 +847,14 @@ function openDeckEditor() {
 
     const costEl = document.createElement('div');
     costEl.className = 'cost';
-    costEl.textContent = `Cost: ${card.cost}`;
+
+    // Show level for troops
+    const level = getCardLevel(card.id);
+    if(!card.spell && !card.building && level > 1) {
+      costEl.innerHTML = `<span style="color:#f7c948;font-weight:bold;">Lv${level}</span> · Cost: ${card.cost}`;
+    } else {
+      costEl.textContent = `Cost: ${card.cost}`;
+    }
 
     cardEl.appendChild(nameEl);
     cardEl.appendChild(costEl);
