@@ -2669,12 +2669,32 @@ function findNearestEnemyToTower(towerId){
    AI State Machine & Intelligence System
    ------------------------- */
 
-// AI state tracking for strategic decision-making
+// AI State Machine: Four strategic states governing AI decision-making
+// Each state has specific entry/exit conditions and priorities
 const AIState = {
-  DEFEND: 'defend',      // Under pressure, focus on defense
-  COUNTER: 'counter',    // Counter-attacking after successful defense
-  PUSH: 'push',          // Building offensive push
-  CYCLE: 'cycle'         // Cycling cards when no clear action
+  // DEFEND: Reactive defensive state (highest priority - can interrupt any state)
+  // Entry: High threat detected (threat level >= 10) near friendly towers
+  // Exit: Threats neutralized for 2+ seconds → COUNTER or CYCLE (based on elixir)
+  // Behavior: Deploy counter units, use area spells against swarms, protect towers
+  DEFEND: 'defend',
+
+  // COUNTER: Time-limited aggressive state after successful defense (5 second window)
+  // Entry: Successfully defended with elixir >= 5
+  // Exit: 5 second timeout → CYCLE, or push initiated → PUSH
+  // Behavior: Prioritize offensive pushes to capitalize on tempo advantage
+  COUNTER: 'counter',
+
+  // PUSH: Active offensive push state (commits elixir to coordinated attack)
+  // Entry: From CYCLE/COUNTER when elixir >= 7 and cooldown elapsed
+  // Exit: Push units eliminated or 8+ seconds elapsed → CYCLE
+  // Behavior: Deploy tank + support units, use buff spells, maintain push pressure
+  PUSH: 'push',
+
+  // CYCLE: Neutral/default state (elixir building, opportunistic plays)
+  // Entry: Default state, or exit from other states when conditions not met
+  // Exit: Threat detected → DEFEND, high elixir → PUSH, defense cleared → COUNTER
+  // Behavior: Card cycling, opportunistic spells, reactive buildings, elixir management
+  CYCLE: 'cycle'
 };
 
 let aiCurrentState = AIState.CYCLE;
@@ -2855,8 +2875,13 @@ function aiDefensiveCheck() {
 
   if(!primaryThreat) return false;
 
-  // State transition: enter DEFEND mode if threat is significant
-  // Only transition to DEFEND if not already defending to avoid state flapping
+  // STATE TRANSITION: CYCLE/COUNTER/PUSH → DEFEND
+  // Reasoning: Defense is the highest priority and overrides all other states
+  // - Threat threshold of 10 represents a significant danger to towers (high HP units near towers)
+  // - Only transition if not already in DEFEND to prevent state flapping (repeated state changes)
+  // - State flapping prevention ensures aiLastStateChange timestamp remains accurate
+  // - This transition can interrupt PUSH state, allowing AI to abandon offense for critical defense
+  // Why threshold 10? Balances between early defense (prevents tower damage) and over-defensive behavior
   if(highestThreat >= 10 && aiCurrentState !== AIState.DEFEND) {
     aiCurrentState = AIState.DEFEND;
     aiLastStateChange = now;
@@ -2943,8 +2968,14 @@ function aiOffensivePush() {
   const x = lane === 0 ? lx : rx;
   const y = board.clientHeight * 0.25;
 
-  // State transition: enter PUSH mode only if not already pushing or defending
-  // This prevents overlapping pushes and respects defensive priority
+  // STATE TRANSITION: CYCLE/COUNTER → PUSH
+  // Reasoning: Initiate offensive push when conditions are favorable
+  // - Only from CYCLE or COUNTER states (not from DEFEND - defense takes priority)
+  // - Requires meeting elixir threshold and cooldown constraints (checked in caller)
+  // - Prevents overlapping pushes by checking current state is not already PUSH
+  // - Resets elixirInvestment to track spending during this push (used for spell support decisions)
+  // Why not from DEFEND? Defense must be completed before offense to avoid divided resources
+  // Counter-attack timing: COUNTER state gets priority for push initiation (capitalize on advantage)
   if(aiCurrentState === AIState.CYCLE || aiCurrentState === AIState.COUNTER) {
     aiCurrentState = AIState.PUSH;
     aiLastStateChange = now;
@@ -3115,18 +3146,36 @@ function aiSupportPush() {
 }
 
 // Main AI decision loop with state machine
+// Orchestrates all AI behavior based on current state and priorities
+// Called periodically (via setInterval) to evaluate game state and take actions
+// Priority system ensures critical actions (defense) override lower priorities
 function aiDecideAndAct() {
   if(gameOver) return;
   const now = performance.now() / 1000;
 
   // Priority 1: Defense (always check first, overrides all other states)
+  // Reasoning: Defense is evaluated every tick regardless of current state
+  // - Prevents tower damage which directly leads to losing the game
+  // - Can interrupt PUSH state if critical threat emerges
+  // - Returns early if defense action taken (prevents double-spending elixir)
   const defendedSuccessfully = aiDefensiveCheck();
   if(defendedSuccessfully) {
     return; // Handled a defensive action
   }
 
-  // State transition: After successful defense with no immediate threats, transition to COUNTER
-  // COUNTER state allows AI to capitalize on elixir advantage after repelling enemy push
+  // STATE TRANSITION: DEFEND → COUNTER or DEFEND → CYCLE
+  // Reasoning: Exit defense mode once threats are neutralized
+  // - Minimum 2 second defense duration prevents premature transitions (gives time to deploy counters)
+  // - Scans 200 unit radius around all friendly towers to confirm threats are cleared
+  // - Elixir-based branching creates strategic decision point:
+  //   * COUNTER (elixir >= 5): Enough resources for immediate counter-attack
+  //     - Capitalizes on tempo advantage (opponent just spent elixir attacking)
+  //     - Creates pressure while opponent recovers elixir
+  //   * CYCLE (elixir < 5): Insufficient resources for counter-push
+  //     - Return to safe state to build elixir advantage
+  //     - Prevents over-committing with low resources
+  // Why 2 second minimum? Allows defensive units to fully engage before reassessing state
+  // Why 200 unit radius? Balances between early counter-attacks and ensuring safety
   if(aiCurrentState === AIState.DEFEND && now - aiLastStateChange > 2.0) {
     // Check if threats are cleared (no enemy units near our towers)
     const redTowerIds = ['redLeft', 'redRight', 'redKing'];
@@ -3151,15 +3200,27 @@ function aiDecideAndAct() {
     }
   }
 
-  // State transition: Exit COUNTER state after window expires (5 seconds)
-  // COUNTER window is time-limited to create urgency for counter-attacks
+  // STATE TRANSITION: COUNTER → CYCLE
+  // Reasoning: COUNTER state has a 5-second expiration window
+  // - Creates urgency for counter-attacks (use advantage or lose it)
+  // - Prevents AI from staying in aggressive stance indefinitely
+  // - After window expires, return to CYCLE (neutral/safe state)
+  // Why 5 seconds? Provides enough time to launch counter-push but forces decisive action
+  // Game design: Time-limited advantages create dynamic gameplay and prevent passive strategies
   if(aiCurrentState === AIState.COUNTER && now - aiLastStateChange > 5.0) {
     aiCurrentState = AIState.CYCLE;
     aiLastStateChange = now;
   }
 
-  // State transition: Exit PUSH state when push units are dead or reached target
-  // This prevents AI from thinking it's pushing when the push has failed/succeeded
+  // STATE TRANSITION: PUSH → CYCLE
+  // Reasoning: Exit push state when push has concluded (succeeded, failed, or timed out)
+  // - Minimum 8 second duration ensures push gets full support before abandoning
+  // - Checks for active push units (tanks/damage dealers) to determine if push is still viable
+  // - Only transitions if no key push units remain alive (push eliminated or reached target)
+  // - Resets elixirInvestment counter (fresh start for next push tracking)
+  // Why 8 seconds? Typical time for units to cross bridge and engage towers
+  // Why check specific unit types? Giant/MegaKnight/Knight are core push units; support units alone don't sustain push
+  // Design: Prevents AI from supporting a non-existent push, allows resource allocation for defense/new push
   if(aiCurrentState === AIState.PUSH && now - aiLastPushTime > 8.0) {
     // Check if any of our push units are still alive and advancing
     const activePushUnits = units.filter(u =>
@@ -3191,7 +3252,15 @@ function aiDecideAndAct() {
   }
 
   // Priority 5: Build offensive push
-  // COUNTER state gets priority for counter-attacks, otherwise check elixir threshold
+  // Decision logic for when AI should attempt a push:
+  // - COUNTER state: Always attempt push (capitalize on tempo advantage after successful defense)
+  //   * Opponent likely has low elixir after failed attack
+  //   * Creates immediate pressure and forces reactive plays
+  // - CYCLE state: Only push if elixir >= threshold (AI_PUSH_THRESHOLD, typically 7)
+  //   * High elixir means we can build strong push with tank + support
+  //   * Prevents weak pushes that waste elixir
+  // Why COUNTER gets priority? Counter-attacks are most effective when opponent is recovering
+  // Note: DEFEND state excluded - must stabilize defense before committing to offense
   const shouldPush = aiCurrentState === AIState.COUNTER ||
                      (aiCurrentState === AIState.CYCLE && aiElixir >= AI_PUSH_THRESHOLD);
 
