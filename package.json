@@ -1,0 +1,9 @@
+{
+  "name": "miniroyale-ai",
+  "version": "1.0.0",
+  "description": "MiniRoyale AI state machine tests",
+  "scripts": {
+    "test": "node ai-state-machine.test.js",
+    "test:ai": "node ai-state-machine.test.js"
+  }
+}
