@@ -164,6 +164,16 @@
   .win-button:hover{transform:scale(1.05);}
   .save-indicator{position:absolute;top:10px;right:10px;background:var(--gold);color:var(--bg);padding:8px 15px;border-radius:20px;font-weight:bold;font-size:14px;opacity:0;transition:opacity 0.3s;}
   .save-indicator.show{opacity:1;}
+  .upgrade-card{background:#1a2635;border:2px solid #4f6a86;border-radius:10px;padding:12px;text-align:center;}
+  .upgrade-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .upgrade-emoji{font-size:28px;}
+  .upgrade-name{font-weight:bold;font-size:14px;}
+  .upgrade-level{color:var(--gold);font-size:12px;font-weight:bold;}
+  .upgrade-stats{font-size:12px;color:#cbd5e1;margin:10px 0;text-align:left;}
+  .upgrade-button{background:linear-gradient(135deg,#4caf50,#2e7d32);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;transition:transform 0.2s;width:100%;}
+  .upgrade-button:hover{transform:scale(1.05);}
+  .upgrade-button:disabled{background:#555;cursor:not-allowed;transform:none;}
+  .max-level{color:#f7c948;font-weight:bold;padding:8px;}
 </style>
 </head>
 <body>
@@ -229,8 +239,23 @@
   <div class="home-menu" id="homeMenu">
     <div class="menu-container">
       <div class="menu-title">Mini Royale</div>
-      <div class="menu-button" onclick="startGame()">Start Match</div>
-      <div class="menu-button" onclick="openDeckEditor()">Edit Deck</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:20px 0;text-align:center;">
+        <div>
+          <div style="font-size:14px;color:#cbd5e1;margin-bottom:5px;">Trophies</div>
+          <div style="font-size:24px;font-weight:bold;color:#f7c948;">🏆 <span id="trophyDisplay">0</span></div>
+          <div style="font-size:12px;color:#cbd5e1;margin-top:5px;" id="leagueDisplay">Training Ground</div>
+        </div>
+        <div>
+          <div style="font-size:14px;color:#cbd5e1;margin-bottom:5px;">Coins</div>
+          <div style="font-size:24px;font-weight:bold;color:#f7c948;">💰 <span id="coinDisplay">0</span></div>
+          <div style="font-size:12px;color:#cbd5e1;margin-top:5px;" id="recordDisplay">0W - 0L</div>
+        </div>
+      </div>
+
+      <div class="menu-button" onclick="startGame()">⚔️ Start Match</div>
+      <div class="menu-button" onclick="openUpgradeShop()">⬆️ Upgrade Cards</div>
+      <div class="menu-button" onclick="openDeckEditor()">📋 Edit Deck</div>
     </div>
   </div>
 
@@ -248,6 +273,18 @@
 
   <!-- Save Indicator -->
   <div class="save-indicator" id="saveIndicator">Deck Saved!</div>
+
+  <!-- Upgrade Shop Menu -->
+  <div class="home-menu" id="upgradeShopMenu" style="display:none;">
+    <div class="menu-container" style="max-width:700px;">
+      <div class="menu-title">Upgrade Shop</div>
+      <div style="text-align:center;margin-bottom:15px;font-size:18px;color:#f7c948;">
+        💰 Coins: <span id="shopCoinDisplay">0</span>
+      </div>
+      <div id="upgradeShopCards" style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;max-height:500px;overflow-y:auto;margin:20px 0;"></div>
+      <button class="back-button" onclick="backToMenuFromShop()">Back to Menu</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -312,24 +349,24 @@ const saveDeckButton = document.getElementById('saveDeckButton');
 const saveIndicator = document.getElementById('saveIndicator');
 
 /* -------------------------
-   ALL AVAILABLE CARDS
+   ALL AVAILABLE CARDS (NERFED BASE STATS - UPGRADES WILL SCALE FROM THESE)
    ------------------------- */
 const allCards = [
-  // Troop Cards
-  { id:'knight', name:'Knight', cost:3, hp:250, dmg:20, range:36, speed:38, emoji:'🗡️', type:'melee', targets:'ground' },
-  { id:'archers', name:'Archers', cost:3, hp:100, dmg:8, range:120, speed:40, emoji:'🏹', count:2, type:'ranged', targets:'airground' },
-  { id:'giant', name:'Giant', cost:5, hp:800, dmg:95, range:30, speed:20, emoji:'🧌', target:'building', type:'giant', targets:'ground' },
-  { id:'skeletons', name:'Skeleton Army', cost:3, hp:15, dmg:15, range:28, speed:50, emoji:'💀', count:15, type:'swarm', targets:'ground' },
-  { id:'megaknight', name:'Mega Knight', cost:7, hp:MEGAKNIGHT_HP, dmg:MEGAKNIGHT_DMG, range:50, speed:25, emoji:'🤺', target:'building', type:'megaknight', targets:'ground' },
-  { id:'minions', name:'Minions', cost:3, hp:80, dmg:12, range:120, speed:40, emoji:'🧚', count:3, type:'ranged', targets:'airground', flying:true },
-  { id:'barbarians', name:'Barbarians', cost:5, hp:300, dmg:30, range:36, speed:38, emoji:'🪓', count:4, type:'melee', targets:'ground' },
-  { id:'royalghost', name:'Royal Ghost', cost:3, hp:200, dmg:25, range:80, speed:45, emoji:'👻', type:'stealth', targets:'ground', stealth:true },
-  { id:'bomber', name:'Bomber', cost:5, hp:500, dmg:100, range:30, speed:30, emoji:'💣', type:'splash', targets:'ground', splashRadius:40 },
-  { id:'witch', name:'Witch', cost:5, hp:400, dmg:35, range:50, speed:35, emoji:'🧙', type:'summoner', targets:'airground', summonInterval:5, summonType:'skeleton' },
-  { id:'hogrider', name:'Hog Rider', cost:4, hp:700, dmg:120, range:30, speed:50, emoji:'🐗', target:'building', type:'hogrider', targets:'ground', jumpsRiver:true },
-  { id:'valkyrie', name:'Valkyrie', cost:4, hp:880, dmg:82, range:40, speed:35, emoji:'🛡️', type:'melee', targets:'ground', splashRadius:60, splash360:true },
-  { id:'bowler', name:'Bowler', cost:5, hp:1300, dmg:65, range:45, speed:30, emoji:'🎳', type:'melee', targets:'ground', splashRadius:30, pierce:true, knockback:20 },
-  { id:'executioner', name:'Executioner', cost:5, hp:770, dmg:65, range:50, speed:35, emoji:'⚔️', type:'ranged', targets:'airground', boomerang:true, splashRadius:40 },
+  // Troop Cards (stats reduced by ~30% to account for upgrade system)
+  { id:'knight', name:'Knight', cost:3, hp:180, dmg:14, range:36, speed:38, emoji:'🗡️', type:'melee', targets:'ground' },
+  { id:'archers', name:'Archers', cost:3, hp:70, dmg:6, range:120, speed:40, emoji:'🏹', count:2, type:'ranged', targets:'airground' },
+  { id:'giant', name:'Giant', cost:5, hp:560, dmg:65, range:30, speed:20, emoji:'🧌', target:'building', type:'giant', targets:'ground' },
+  { id:'skeletons', name:'Skeleton Army', cost:3, hp:12, dmg:11, range:28, speed:50, emoji:'💀', count:15, type:'swarm', targets:'ground' },
+  { id:'megaknight', name:'Mega Knight', cost:7, hp:350, dmg:50, range:50, speed:25, emoji:'🤺', target:'building', type:'megaknight', targets:'ground' },
+  { id:'minions', name:'Minions', cost:3, hp:55, dmg:8, range:120, speed:40, emoji:'🧚', count:3, type:'ranged', targets:'airground', flying:true },
+  { id:'barbarians', name:'Barbarians', cost:5, hp:210, dmg:21, range:36, speed:38, emoji:'🪓', count:4, type:'melee', targets:'ground' },
+  { id:'royalghost', name:'Royal Ghost', cost:3, hp:140, dmg:18, range:80, speed:45, emoji:'👻', type:'stealth', targets:'ground', stealth:true },
+  { id:'bomber', name:'Bomber', cost:5, hp:350, dmg:70, range:30, speed:30, emoji:'💣', type:'splash', targets:'ground', splashRadius:40 },
+  { id:'witch', name:'Witch', cost:5, hp:280, dmg:25, range:50, speed:35, emoji:'🧙', type:'summoner', targets:'airground', summonInterval:5, summonType:'skeleton' },
+  { id:'hogrider', name:'Hog Rider', cost:4, hp:490, dmg:85, range:30, speed:50, emoji:'🐗', target:'building', type:'hogrider', targets:'ground', jumpsRiver:true },
+  { id:'valkyrie', name:'Valkyrie', cost:4, hp:620, dmg:58, range:40, speed:35, emoji:'🛡️', type:'melee', targets:'ground', splashRadius:60, splash360:true },
+  { id:'bowler', name:'Bowler', cost:5, hp:910, dmg:46, range:45, speed:30, emoji:'🎳', type:'melee', targets:'ground', splashRadius:30, pierce:true, knockback:20 },
+  { id:'executioner', name:'Executioner', cost:5, hp:540, dmg:46, range:50, speed:35, emoji:'⚔️', type:'ranged', targets:'airground', boomerang:true, splashRadius:40 },
 
   // Spell Cards
   { id:'arrows', name:'Arrows', cost:3, spell:true, emoji:'🏹', radius:150, damage:250 },
@@ -371,14 +408,44 @@ function checkWinCondition() {
 function endGame(winner) {
   if (gameOver) return;
   gameOver = true;
-  
+
+  // Award trophies and coins
+  const playerWon = winner === 'Blue';
+  let trophyChange = 0;
+  let coinsEarned = 0;
+
+  if (playerWon) {
+    trophyChange = TROPHY_GAIN_WIN;
+    coinsEarned = COINS_PER_WIN;
+    playerStats.wins++;
+    playerStats.trophies += trophyChange;
+    playerStats.coins += coinsEarned;
+  } else {
+    trophyChange = -TROPHY_LOSS_DEFEAT;
+    playerStats.losses++;
+    playerStats.trophies = Math.max(0, playerStats.trophies + trophyChange); // Can't go below 0
+  }
+
+  savePlayerStats();
+
   // Create win screen overlay
   const winScreen = document.createElement('div');
   winScreen.className = 'win-screen';
+  const trophyText = trophyChange > 0 ? `+${trophyChange}` : `${trophyChange}`;
+  const rewardHTML = playerWon
+    ? `<div class="win-rewards" style="margin: 20px 0; font-size: 18px;">
+         <div style="color: #f7c948;">Trophies: ${trophyText} (${playerStats.trophies} total)</div>
+         <div style="color: #f7c948;">Coins: +${coinsEarned} (${playerStats.coins} total)</div>
+       </div>`
+    : `<div class="win-rewards" style="margin: 20px 0; font-size: 18px;">
+         <div style="color: #ff6b6b;">Trophies: ${trophyText} (${playerStats.trophies} total)</div>
+       </div>`;
+
   winScreen.innerHTML = `
     <div class="win-content">
       <div class="win-title">${winner.toUpperCase()} WINS!</div>
-      <div class="win-subtitle">Victory Royale</div>
+      <div class="win-subtitle">${playerWon ? 'Victory Royale!' : 'Better Luck Next Time'}</div>
+      ${rewardHTML}
       <button class="win-button" onclick="location.reload()">Play Again</button>
     </div>
   `;
@@ -419,8 +486,125 @@ function showSaveIndicator() {
 }
 
 /* -------------------------
+   PLAYER PROGRESSION SYSTEM
+   ------------------------- */
+const PLAYER_STATS_KEY = 'miniRoyalePlayerStats';
+const TROPHY_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2100, 2800, 3600, 4500, 5500];
+const TROPHY_NAMES = ['Training Ground', 'Bronze League', 'Silver League', 'Gold League', 'Crystal League', 'Master League', 'Champion League', 'Grand Champion', 'Ultimate Champion', 'Legendary Champion', 'Royal Legend'];
+
+let playerStats = {
+  trophies: 0,
+  coins: 0,
+  wins: 0,
+  losses: 0,
+  cardLevels: {} // cardId -> level (1-10)
+};
+
+// Trophy rewards based on win/loss
+const TROPHY_GAIN_WIN = 30;
+const TROPHY_LOSS_DEFEAT = 20;
+const COINS_PER_WIN = 50;
+
+// Card upgrade costs and stat multipliers
+const UPGRADE_COSTS = [0, 50, 150, 300, 500, 800, 1200, 1700, 2500, 3500]; // Level 1->2, 2->3, etc.
+const STAT_MULTIPLIER_PER_LEVEL = 0.10; // 10% increase per level
+
+function loadPlayerStats() {
+  try {
+    const saved = localStorage.getItem(PLAYER_STATS_KEY);
+    if (saved) {
+      playerStats = JSON.parse(saved);
+      // Initialize card levels if not present
+      if (!playerStats.cardLevels) playerStats.cardLevels = {};
+      return playerStats;
+    }
+  } catch (e) {
+    console.error('Failed to load player stats:', e);
+  }
+  return playerStats;
+}
+
+function savePlayerStats() {
+  try {
+    localStorage.setItem(PLAYER_STATS_KEY, JSON.stringify(playerStats));
+  } catch (e) {
+    console.error('Failed to save player stats:', e);
+  }
+}
+
+function getCardLevel(cardId) {
+  return playerStats.cardLevels[cardId] || 1;
+}
+
+function getCardStats(card) {
+  const level = getCardLevel(card.id);
+  const multiplier = 1 + (level - 1) * STAT_MULTIPLIER_PER_LEVEL;
+
+  return {
+    ...card,
+    hp: card.hp ? Math.floor(card.hp * multiplier) : card.hp,
+    dmg: card.dmg ? Math.floor(card.dmg * multiplier) : card.dmg,
+    dps: card.dps ? Math.floor(card.dps * multiplier) : card.dps,
+    level: level
+  };
+}
+
+function upgradCard(cardId) {
+  const currentLevel = getCardLevel(cardId);
+  if (currentLevel >= 10) return false; // Max level
+
+  const cost = UPGRADE_COSTS[currentLevel - 1];
+  if (playerStats.coins < cost) return false; // Not enough coins
+
+  playerStats.coins -= cost;
+  playerStats.cardLevels[cardId] = currentLevel + 1;
+  savePlayerStats();
+  return true;
+}
+
+function getTrophyLeague() {
+  const trophies = playerStats.trophies;
+  for (let i = TROPHY_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (trophies >= TROPHY_THRESHOLDS[i]) {
+      return { level: i, name: TROPHY_NAMES[i], threshold: TROPHY_THRESHOLDS[i] };
+    }
+  }
+  return { level: 0, name: TROPHY_NAMES[0], threshold: 0 };
+}
+
+function getAIDifficultyMultiplier() {
+  const league = getTrophyLeague();
+  // AI gets progressively harder: 0.8x at start to 2.0x at max
+  return 0.8 + (league.level * 0.12);
+}
+
+function getAIScaledCard(card) {
+  const multiplier = getAIDifficultyMultiplier();
+  return {
+    ...card,
+    hp: card.hp ? Math.floor(card.hp * multiplier) : card.hp,
+    dmg: card.dmg ? Math.floor(card.dmg * multiplier) : card.dmg,
+    dps: card.dps ? Math.floor(card.dps * multiplier) : card.dps
+  };
+}
+
+function getTowerHPBonus() {
+  const league = getTrophyLeague();
+  // Both players get tower HP boost: +200 per league level
+  return league.level * 200;
+}
+
+/* -------------------------
    TOWERS
    ------------------------- */
+function initializeTowerHP() {
+  const bonus = getTowerHPBonus();
+  return {
+    crown: TOWER_MAX.crown + bonus,
+    king: TOWER_MAX.king + Math.floor(bonus * 1.5)
+  };
+}
+
 const towers = {
   blueLeft:  { hp:TOWER_MAX.crown, el:'hp-blueLeft', txt:'txt-blueLeft', side:'blue', range:140, dps:20, lane:0, lastDamagedAt:0, frozenUntil:0 },
   blueRight: { hp:TOWER_MAX.crown, el:'hp-blueRight', txt:'txt-blueRight', side:'blue', range:140, dps:20, lane:1, lastDamagedAt:0, frozenUntil:0 },
@@ -435,7 +619,7 @@ function setHP(id, hp, attackerSide=null){
   const t = towers[id];
   const prev = t.hp;
   t.hp = Math.max(0, hp);
-  const max = id.includes('King') ? TOWER_MAX.king : TOWER_MAX.crown;
+  const max = t.maxHp || (id.includes('King') ? TOWER_MAX.king : TOWER_MAX.crown);
   const pct = t.hp / max * 100;
   document.getElementById(t.el).style.width = pct + '%';
   document.getElementById(t.txt).textContent = Math.ceil(t.hp);
@@ -535,23 +719,26 @@ function initializeGame() {
   crownsBlue = 0;
   crownsRed = 0;
   scoreEl.textContent = 'Blue 0 | Red 0';
-  
-  // Reset towers
+
+  // Reset towers with trophy bonuses
+  const towerHP = initializeTowerHP();
   for(const id of Object.keys(towers)) {
-    towers[id].hp = id.includes('King') ? TOWER_MAX.king : TOWER_MAX.crown;
+    const maxHp = id.includes('King') ? towerHP.king : towerHP.crown;
+    towers[id].hp = maxHp;
+    towers[id].maxHp = maxHp;
     towers[id].princessActive = false;
     const princessEl = document.getElementById(id + 'Princess');
     if(princessEl) princessEl.classList.remove('active');
     setHP(id, towers[id].hp);
   }
-  
+
   // Initialize player deck
   deck = [...currentDeck];
-  
-  // Initialize AI deck with random cards
+
+  // Initialize AI deck with random cards scaled by difficulty
   aiDeck = generateRandomDeck();
   aiCurrentCardIndex = 0;
-  
+
   // Draw initial hand
   drawHand();
 }
@@ -862,7 +1049,7 @@ let uid = 1;
 function drawUnit(u){
   const el = document.createElement('div');
   el.className = 'unit ' + (u.side==='blue'?'blue':'red');
-  
+
   // Add type-specific classes
   if(u.type === 'goblin') el.classList.add('goblin');
   if(u.type === 'knight') el.classList.add('knight');
@@ -877,13 +1064,13 @@ function drawUnit(u){
   if(u.type === 'valkyrie') el.classList.add('valkyrie');
   if(u.type === 'bowler') el.classList.add('bowler');
   if(u.type === 'exec') el.classList.add('exec');
-  
+
   // Add flying class for flying units
   if(u.flying) el.classList.add('flying');
-  
+
   // Add revealed class for stealth units that have been revealed
   if(u.stealth && u.revealed) el.classList.add('revealed');
-  
+
   el.style.left = (u.x - 14) + 'px';
   el.style.top = (u.y - 14) + 'px';
   el.dataset.id = String(u.id);
@@ -892,6 +1079,25 @@ function drawUnit(u){
   const hpFill = document.createElement('div'); hpFill.className='uFill';
   hpWrap.appendChild(hpFill);
   el.appendChild(tag); el.appendChild(hpWrap);
+
+  // Add level indicator for player units
+  if(u.level && u.level > 1 && u.side === 'blue') {
+    const levelTag = document.createElement('div');
+    levelTag.className = 'level-tag';
+    levelTag.textContent = `L${u.level}`;
+    levelTag.style.position = 'absolute';
+    levelTag.style.bottom = '-18px';
+    levelTag.style.left = '50%';
+    levelTag.style.transform = 'translateX(-50%)';
+    levelTag.style.fontSize = '9px';
+    levelTag.style.fontWeight = 'bold';
+    levelTag.style.color = '#f7c948';
+    levelTag.style.backgroundColor = 'rgba(0,0,0,0.6)';
+    levelTag.style.padding = '1px 3px';
+    levelTag.style.borderRadius = '3px';
+    el.appendChild(levelTag);
+  }
+
   board.appendChild(el);
 }
 
@@ -1024,55 +1230,58 @@ function removeEffect(id){
 function spawn(card, side, x, y){
   if(gameOver) return;
   const lane = laneFromX(x);
-  
-  if(card.id === 'skeletons' || card.name === 'Skeleton Army'){
-    const count = card.count || 8;
+
+  // Apply card levels for player troops, AI scaling for AI troops
+  const cardToSpawn = (side === 'blue') ? getCardStats(card) : getAIScaledCard(card);
+
+  if(cardToSpawn.id === 'skeletons' || cardToSpawn.name === 'Skeleton Army'){
+    const count = cardToSpawn.count || 8;
     for(let i=0;i<count;i++){
       const r = Math.random() * SKEL_SPAWN_RADIUS;
       const a = Math.random() * Math.PI * 2;
       const ux = x + Math.cos(a) * r;
       const uy = y + Math.sin(a) * r;
-      createUnit({ ...card, emoji:'💀', type:'skeleton' }, side, ux, uy, lane, side==='blue' ? -Math.PI/2 : Math.PI/2);
+      createUnit({ ...cardToSpawn, emoji:'💀', type:'skeleton' }, side, ux, uy, lane, side==='blue' ? -Math.PI/2 : Math.PI/2);
     }
-  } else if(card.id === 'archers' || card.name === 'Archers'){
+  } else if(cardToSpawn.id === 'archers' || cardToSpawn.name === 'Archers'){
     const [lx,rx] = laneXs();
     const centerX = (lx + rx)/2;
     const distToCenter = Math.abs(x - centerX);
     if(distToCenter < 40){
-      createUnit({ ...card, count:1, emoji:'🏹', type:'archer' }, side, x-12, y, 0);
-      createUnit({ ...card, count:1, emoji:'🏹', type:'archer' }, side, x+12, y, 1);
+      createUnit({ ...cardToSpawn, count:1, emoji:'🏹', type:'archer' }, side, x-12, y, 0);
+      createUnit({ ...cardToSpawn, count:1, emoji:'🏹', type:'archer' }, side, x+12, y, 1);
     } else {
-      const count = card.count || 2;
+      const count = cardToSpawn.count || 2;
       for(let i=0;i<count;i++){
         const ux = x + (i*10 - (count-1)*5);
         const uy = y + (i*6);
-        createUnit({ ...card, type:'archer' }, side, ux, uy, lane);
+        createUnit({ ...cardToSpawn, type:'archer' }, side, ux, uy, lane);
       }
     }
-  } else if(card.id === 'minions' || card.name === 'Minions'){
+  } else if(cardToSpawn.id === 'minions' || cardToSpawn.name === 'Minions'){
     const [lx,rx] = laneXs();
     const centerX = (lx + rx)/2;
     const distToCenter = Math.abs(x - centerX);
     if(distToCenter < 40){
-      createUnit({ ...card, count:1, emoji:'🧚', type:'archer', flying:true }, side, x-12, y, 0);
-      createUnit({ ...card, count:1, emoji:'🧚', type:'archer', flying:true }, side, x+12, y, 1);
+      createUnit({ ...cardToSpawn, count:1, emoji:'🧚', type:'archer', flying:true }, side, x-12, y, 0);
+      createUnit({ ...cardToSpawn, count:1, emoji:'🧚', type:'archer', flying:true }, side, x+12, y, 1);
     } else {
-      const count = card.count || 3;
+      const count = cardToSpawn.count || 3;
       for(let i=0;i<count;i++){
         const ux = x + (i*10 - (count-1)*5);
         const uy = y + (i*6);
-        createUnit({ ...card, type:'archer', flying:true }, side, ux, uy, lane);
+        createUnit({ ...cardToSpawn, type:'archer', flying:true }, side, ux, uy, lane);
       }
     }
-  } else if(card.id === 'barbarians' || card.name === 'Barbarians'){
-    const count = card.count || 4;
+  } else if(cardToSpawn.id === 'barbarians' || cardToSpawn.name === 'Barbarians'){
+    const count = cardToSpawn.count || 4;
     for(let i=0;i<count;i++){
       const ux = x + (i*15 - (count-1)*7.5);
       const uy = y + (i*8);
-      createUnit({ ...card, emoji:'🪓', type:'melee' }, side, ux, uy, lane);
+      createUnit({ ...cardToSpawn, emoji:'🪓', type:'melee' }, side, ux, uy, lane);
     }
   } else {
-    createUnit(card, side, x, y, lane);
+    createUnit(cardToSpawn, side, x, y, lane);
   }
 }
 
@@ -1084,6 +1293,7 @@ function createUnit(card, side, x, y, lane, angle){
     dmg: card.dmg || 0, range: card.range || 28, speed: card.speed || 30,
     type: card.type || 'melee', lane,
     emoji: card.emoji || card.name[0],
+    level: card.level || 1,
     readyAt: performance.now()/1000 + DEPLOY_DELAY,
     angle: angle || (side==='blue' ? -Math.PI/2 : Math.PI/2),
     targetId: null,
@@ -1296,11 +1506,14 @@ function forceRetargetAfterTowerDeath(destroyedTowerSide){
         const enemyKing = (u.side === 'blue') ? 'redKing' : 'blueKing';
         u.targetId = enemyKing;
         const pos = towerPos(enemyKing);
-        const offset = 12;
+        const offset = 50; // Keep troops NEAR the tower, not at the bridge
         const snapX = laneXs()[0];
         const snapY = (u.side === 'blue') ? (pos.y + offset) : (pos.y - offset);
-        u.x += (snapX - u.x) * 0.6;
-        u.y = snapY;
+        // Only move if troop has actually reached close to tower
+        const distToKing = Math.hypot(u.x - pos.x, u.y - pos.y);
+        if(distToKing < 200) {
+          u.x += (snapX - u.x) * 0.3;
+        }
         continue;
       }
     }
@@ -1310,11 +1523,14 @@ function forceRetargetAfterTowerDeath(destroyedTowerSide){
         const enemyKing = (u.side === 'blue') ? 'redKing' : 'blueKing';
         u.targetId = enemyKing;
         const pos = towerPos(enemyKing);
-        const offset = 12;
+        const offset = 50; // Keep troops NEAR the tower, not at the bridge
         const snapX = laneXs()[1];
         const snapY = (u.side === 'blue') ? (pos.y + offset) : (pos.y - offset);
-        u.x += (snapX - u.x) * 0.6;
-        u.y = snapY;
+        // Only move if troop has actually reached close to tower
+        const distToKing = Math.hypot(u.x - pos.x, u.y - pos.y);
+        if(distToKing < 200) {
+          u.x += (snapX - u.x) * 0.3;
+        }
         continue;
       }
     }
@@ -1322,11 +1538,14 @@ function forceRetargetAfterTowerDeath(destroyedTowerSide){
     if(bothCrownsDown){
       u.targetId = kingId;
       const pos = towerPos(kingId);
-      const offset = 12;
+      const offset = 50; // Keep troops NEAR the tower, not at the bridge
       const snapX = (u.lane === 0 ? laneXs()[0] : laneXs()[1]);
       const snapY = (u.side === 'blue') ? (pos.y + offset) : (pos.y - offset);
-      u.x += (snapX - u.x) * 0.6;
-      u.y = snapY;
+      // Only move if troop has actually reached close to tower
+      const distToKing = Math.hypot(u.x - pos.x, u.y - pos.y);
+      if(distToKing < 200) {
+        u.x += (snapX - u.x) * 0.3;
+      }
       continue;
     }
 
@@ -2270,15 +2489,27 @@ function tickUnit(u, dt){
   const enemyRightId = enemySide + 'Right';
   if(u.lane === 0 && towers[enemyLeftId].hp < 1){
     u.targetId = enemySide + 'King';
-    const snapX = laneXs()[0];
-    const snapY = (u.side === 'blue') ? (towerPos(u.targetId).y + offset) : (towerPos(u.targetId).y - offset);
-    u.x += (snapX - u.x) * 0.6; u.y = snapY; return;
+    const kingPos = towerPos(u.targetId);
+    const distToKing = Math.hypot(u.x - kingPos.x, u.y - kingPos.y);
+    // Only snap if close to king tower
+    if(distToKing < 200) {
+      const snapX = laneXs()[0];
+      const snapY = (u.side === 'blue') ? (kingPos.y + offset) : (kingPos.y - offset);
+      u.x += (snapX - u.x) * 0.3; u.y = snapY;
+    }
+    return;
   }
   if(u.lane === 1 && towers[enemyRightId].hp < 1){
     u.targetId = enemySide + 'King';
-    const snapX = laneXs()[1];
-    const snapY = (u.side === 'blue') ? (towerPos(u.targetId).y + offset) : (towerPos(u.targetId).y - offset);
-    u.x += (snapX - u.x) * 0.6; u.y = snapY; return;
+    const kingPos = towerPos(u.targetId);
+    const distToKing = Math.hypot(u.x - kingPos.x, u.y - kingPos.y);
+    // Only snap if close to king tower
+    if(distToKing < 200) {
+      const snapX = laneXs()[1];
+      const snapY = (u.side === 'blue') ? (kingPos.y + offset) : (kingPos.y - offset);
+      u.x += (snapX - u.x) * 0.3; u.y = snapY;
+    }
+    return;
   }
 
   if((reached || withinThreshold) && horizontalDist <= 80){
@@ -3425,6 +3656,75 @@ function loop(ts){
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+
+/* -------------------------
+   INITIALIZATION
+   ------------------------- */
+// Load player stats on page load
+loadPlayerStats();
+
+// Update menu with stats
+function updateMenuDisplay() {
+  const league = getTrophyLeague();
+  document.getElementById('trophyDisplay').textContent = `${playerStats.trophies}`;
+  document.getElementById('coinDisplay').textContent = `${playerStats.coins}`;
+  document.getElementById('leagueDisplay').textContent = league.name;
+  document.getElementById('recordDisplay').textContent = `${playerStats.wins}W - ${playerStats.losses}L`;
+}
+
+// Open upgrade shop
+function openUpgradeShop() {
+  homeMenu.style.display = 'none';
+  document.getElementById('upgradeShopMenu').style.display = 'grid';
+  renderUpgradeShop();
+}
+
+function renderUpgradeShop() {
+  const shopContainer = document.getElementById('upgradeShopCards');
+  shopContainer.innerHTML = '';
+
+  allCards.filter(c => !c.spell && !c.building).forEach(card => {
+    const level = getCardLevel(card.id);
+    const nextCost = level < 10 ? UPGRADE_COSTS[level - 1] : null;
+
+    const cardEl = document.createElement('div');
+    cardEl.className = 'upgrade-card';
+    cardEl.innerHTML = `
+      <div class="upgrade-card-header">
+        <span class="upgrade-emoji">${card.emoji}</span>
+        <span class="upgrade-name">${card.name}</span>
+        <span class="upgrade-level">Level ${level}</span>
+      </div>
+      <div class="upgrade-stats">
+        HP: ${card.hp || 'N/A'} ${level < 10 ? `→ ${Math.floor((card.hp || 0) * (1 + level * STAT_MULTIPLIER_PER_LEVEL))}` : ''}
+        <br>DMG: ${card.dmg || card.dps || 'N/A'} ${level < 10 ? `→ ${Math.floor(((card.dmg || card.dps) || 0) * (1 + level * STAT_MULTIPLIER_PER_LEVEL))}` : ''}
+      </div>
+      ${nextCost ? `
+        <button class="upgrade-button" onclick="upgradeCardFromShop('${card.id}')" ${playerStats.coins < nextCost ? 'disabled' : ''}>
+          Upgrade (${nextCost} coins)
+        </button>
+      ` : '<div class="max-level">MAX LEVEL</div>'}
+    `;
+    shopContainer.appendChild(cardEl);
+  });
+
+  document.getElementById('shopCoinDisplay').textContent = playerStats.coins;
+}
+
+function upgradeCardFromShop(cardId) {
+  if (upgradCard(cardId)) {
+    renderUpgradeShop();
+  }
+}
+
+function backToMenuFromShop() {
+  document.getElementById('upgradeShopMenu').style.display = 'none';
+  homeMenu.style.display = 'grid';
+  updateMenuDisplay();
+}
+
+// Initial menu update
+updateMenuDisplay();
 
 /* initial draw */
 drawHand()
