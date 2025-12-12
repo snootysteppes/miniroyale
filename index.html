@@ -938,7 +938,7 @@ function onSlotDrop(e) {
   if (!card) return;
 
   // If dragging from another slot, swap or move
-  if (fromSlot !== '') {
+  if (fromSlot !== null && fromSlot !== undefined && fromSlot !== '') {
     const fromIndex = parseInt(fromSlot);
     const temp = deckSlots[slotIndex];
     deckSlots[slotIndex] = deckSlots[fromIndex];
