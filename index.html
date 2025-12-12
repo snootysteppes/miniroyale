@@ -769,7 +769,34 @@ board.addEventListener('drop', e=>{
   }
   if(card.cost > Math.floor(playerElixir)) return;
   playerElixir -= card.cost;
-  spawn(card,'blue',x,y);
+
+  // Smart placement for Skeleton Army - target nearest enemy troop
+  if(card.id === 'skeletons' || card.name === 'Skeleton Army'){
+    const detectionRadius = 120;
+    let nearestEnemy = null;
+    let nearestDist = Infinity;
+
+    // Find nearest enemy troop
+    for(const u of units){
+      if(u.side === 'red'){
+        const d = Math.hypot(u.x - x, u.y - y);
+        if(d <= detectionRadius && d < nearestDist){
+          nearestDist = d;
+          nearestEnemy = u;
+        }
+      }
+    }
+
+    // If enemy troop found nearby, spawn on top of it
+    if(nearestEnemy){
+      spawn(card,'blue', nearestEnemy.x, nearestEnemy.y);
+    } else {
+      spawn(card,'blue',x,y);
+    }
+  } else {
+    spawn(card,'blue',x,y);
+  }
+
   cycleTopCard();
   drawHand();
 });
