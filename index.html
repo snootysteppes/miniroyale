@@ -2071,25 +2071,36 @@ function tickUnit(u, dt){
       }
       if(towers[u.targetId] && towers[u.targetId].hp > 0){
         const pos = towerPos(u.targetId);
+        const dist = Math.hypot(pos.x - u.x, pos.y - u.y);
         const horizontalDist = Math.abs(pos.x - u.x);
-        if(horizontalDist > 48 && u.type !== 'giant' && u.type !== 'megaknight' && u.type !== 'hogrider'){
-          const [lx,rx] = laneXs();
-          const targetX = u.lane === 0 ? lx : rx;
-          u.x += (targetX - u.x) * Math.min(1, dt * 6);
-        }
 
-        if(now - u.lastAttack > u.attackSpeed) {
-          u.lastAttack = now;
+        // Check if unit is in range to attack tower
+        if(dist <= u.range + 6) {
+          if(horizontalDist > 48 && u.type !== 'giant' && u.type !== 'megaknight' && u.type !== 'hogrider'){
+            const [lx,rx] = laneXs();
+            const targetX = u.lane === 0 ? lx : rx;
+            u.x += (targetX - u.x) * Math.min(1, dt * 6);
+          }
 
-          let towerFactor = BASE_TOWER_FACTOR;
-          if(u.type === 'giant' || u.type === 'megaknight' || u.type === 'hogrider') towerFactor = GIANT_TOWER_MULT;
-          if(u.type === 'swarm' || u.type === 'skeleton') towerFactor = SKEL_TOWER_MULT;
-          if(u.type === 'goblin') towerFactor = 1.5;
-          
-          towers[u.targetId].hp -= u.dmg * u.rageMultiplier * towerFactor;
-          setHP(u.targetId, towers[u.targetId].hp, u.side);
+          if(now - u.lastAttack > u.attackSpeed) {
+            u.lastAttack = now;
+
+            let towerFactor = BASE_TOWER_FACTOR;
+            if(u.type === 'giant' || u.type === 'megaknight' || u.type === 'hogrider') towerFactor = GIANT_TOWER_MULT;
+            if(u.type === 'swarm' || u.type === 'skeleton') towerFactor = SKEL_TOWER_MULT;
+            if(u.type === 'goblin') towerFactor = 1.5;
+
+            towers[u.targetId].hp -= u.dmg * u.rageMultiplier * towerFactor;
+            setHP(u.targetId, towers[u.targetId].hp, u.side);
+          }
+          return;
+        } else {
+          // Move towards tower if not in range
+          const dx = pos.x - u.x;
+          const dy = pos.y - u.y;
+          moveWithBridgePathing(u, (dx/dist) * u.speed * u.rageMultiplier * dt, (dy/dist) * u.speed * u.rageMultiplier * dt, dt);
+          return;
         }
-        return;
       } else {
         u.targetId = null;
       }
