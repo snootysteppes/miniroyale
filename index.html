@@ -2665,366 +2665,526 @@ function findNearestEnemyToTower(towerId){
   return { unit: best, dist: bestD };
 }
 
-let aiLastDefense = 0;
-function aiDefensiveCheck(){
-  if(gameOver) return;
-  const now = performance.now()/1000;
-  if(now - aiLastDefense < 0.6) return;
-  aiLastDefense = now;
-
-  const redTowerIds = ['redLeft','redRight','redKing'];
-  for(const tid of redTowerIds){
-    const t = towers[tid];
-    const underPressure = (t.lastDamagedAt && (now - t.lastDamagedAt) < 1.6) || (t.hp < (TOWER_MAX.crown * 0.55));
-    if(!underPressure) continue;
-
-    const { unit: enemy } = findNearestEnemyToTower(tid);
-    if(!enemy) continue;
-
-    const inferno = buildings.find(b => b.type === 'inferno' && b.side === 'red');
-    if(inferno){
-      const near = units.filter(u => u.side === 'blue' && Math.hypot(u.x - inferno.x, u.y - inferno.y) < 160);
-      if(near.length >= 2 && aiElixir >= 2){
-        const towerPosObj = towerPos(tid);
-        const tornadoX = towerPosObj.x + (Math.random() < 0.5 ? -120 : 120);
-        const tornadoY = towerPosObj.y + (enemy.side === 'blue' ? -100 : 100);
-        
-        aiElixir -= 2;
-        castTornado(tornadoX, tornadoY, 'ai');
-        setTimeout(()=>{
-          if(gameOver) return;
-          const cluster = units.filter(u => u.side === 'blue' && Math.hypot(u.x - tornadoX, u.y - tornadoY) < 110);
-          const hasThreat = cluster.some(c => c.type === 'swarm' || c.type === 'skeleton' || c.type === 'ranged' || (c.type==='melee' && c.emoji==='K'));
-          if(hasThreat && aiElixir >= 3){
-            aiElixir -= 3;
-            castArrows(tornadoX, tornadoY, 'ai');
-          }
-        }, 320);
-        return;
-      }
-    }
-
-    const towerPosObj = towerPos(tid);
-    const nearbyEnemies = units.filter(u => u.side === 'blue' && Math.hypot(u.x - towerPosObj.x, u.y - towerPosObj.y) < 120);
-    const swarmCount = nearbyEnemies.filter(e => e.type === 'swarm' || e.type === 'skeleton' || e.type === 'ranged').length;
-    if(swarmCount >= 3 && aiElixir >= 3){
-      aiElixir -= 3;
-      castArrows(towerPosObj.x, towerPosObj.y, 'ai');
-      return;
-    }
-    if(swarmCount >= 3 && aiElixir >= 2){
-      const tornadoX = towerPosObj.x + (Math.random() < 0.5 ? -120 : 120);
-      const tornadoY = towerPosObj.y + (enemy.side === 'blue' ? -100 : 100);
-      
-      aiElixir -= 2;
-      castTornado(tornadoX, tornadoY, 'ai');
-      return;
-    }
-
-    if(enemy.type === 'giant'){
-      if(aiElixir >= 3){
-        aiElixir -= 3;
-        const lane = enemy.lane;
-        const [lx,rx] = laneXs();
-        const x = lane===0?lx:rx;
-        
-        const enemyKingId = 'blueKing';
-        const kingPos = towerPos(enemyKingId);
-        const distToKing = Math.hypot(enemy.x - kingPos.x, enemy.y - kingPos.y);
-        
-        if(distToKing < 150) {
-          spawn({ id:'skeletons', name:'Skeleton Army', cost:3, hp:40, dmg:14, range:28, speed:50, emoji:'S', count:8, type:'swarm' }, 'red', kingPos.x, kingPos.y + 30);
-        } else {
-          spawn({ id:'skeletons', name:'Skeleton Army', cost:3, hp:40, dmg:14, range:28, speed:50, emoji:'S', count:8, type:'swarm' }, 'red', x, towerPos(tid).y + 30);
-        }
-        return;
-      }
-    } else if(enemy.type === 'swarm' || enemy.type === 'skeleton'){
-      if(aiElixir >= 3){
-        aiElixir -= 3;
-        castArrows(enemy.x, enemy.y, 'ai');
-        return;
-      } else if(aiElixir >= 2){
-        const tornadoX = enemy.x + (Math.random() < 0.5 ? -80 : 80);
-        const tornadoY = enemy.y + (enemy.side === 'blue' ? -80 : 80);
-        
-        aiElixir -= 2;
-        castTornado(tornadoX, tornadoY, 'ai');
-        return;
-      }
-    } else if(enemy.type === 'melee' && enemy.emoji === 'K'){
-      if(aiElixir >= 3){
-        aiElixir -= 3;
-        const lane = enemy.lane;
-        const [lx,rx] = laneXs();
-        const x = lane===0?lx:rx;
-        spawn({ id:'skeletons', name:'Skeleton Army', cost:3, hp:40, dmg:14, range:28, speed:50, emoji:'S', count:8, type:'swarm' }, 'red', x, towerPos(tid).y + 30);
-        return;
-      }
-    } else if(enemy.type === 'megaknight'){
-      if(aiElixir >= 3){
-        aiElixir -= 3;
-        const lane = enemy.lane;
-        const [lx,rx] = laneXs();
-        const x = lane===0?lx:rx;
-        spawn({ id:'skeletons', name:'Skeleton Army', cost:3, hp:40, dmg:14, range:28, speed:50, emoji:'S', count:8, type:'swarm' }, 'red', x, towerPos(tid).y + 30);
-        return;
-      }
-    } else if(enemy.type === 'ranged'){
-      if(aiElixir >= 3){
-        aiElixir -= 3;
-        const lane = enemy.lane;
-        const [lx,rx] = laneXs();
-        const x = lane===0?lx:rx;
-        spawn({ id:'knight', name:'Knight', cost:3, hp:250, dmg:20, range:36, speed:38, emoji:'K', type:'melee' }, 'red', x, towerPos(tid).y + 30);
-        return;
-      }
-    } else {
-      if(aiElixir >= 3){
-        aiElixir -= 3;
-        const lane = enemy.lane || 0;
-        const [lx,rx] = laneXs();
-        const x = lane===0?lx:rx;
-        spawn({ id:'archers', name:'Archers', cost:3, hp:100, dmg:8, range:120, speed:40, emoji:'A', count:2, type:'ranged' }, 'red', x, towerPos(tid).y + 30);
-        return;
-      }
-    }
-  }
-}
-
 /* -------------------------
-   AI Decision (push policy)
+   AI State Machine & Intelligence System
    ------------------------- */
+
+// AI state tracking for strategic decision-making
+const AIState = {
+  DEFEND: 'defend',      // Under pressure, focus on defense
+  COUNTER: 'counter',    // Counter-attacking after successful defense
+  PUSH: 'push',          // Building offensive push
+  CYCLE: 'cycle'         // Cycling cards when no clear action
+};
+
+let aiCurrentState = AIState.CYCLE;
+let aiLastStateChange = 0;
+let aiLastDefense = 0;
 let aiLastPushTime = 0;
+let aiElixirInvestment = 0; // Track elixir committed to current push
 const AI_PUSH_THRESHOLD = 7;
-function aiEvaluateBoard(){
-  const blueUnits = units.filter(u=>u.side==='blue');
-  const counts = { lane0:{s:0,a:0,other:0}, lane1:{s:0,a:0,other:0}, totalS:0, totalA:0 };
-  for(const u of blueUnits){
-    if(u.type === 'swarm' || u.type === 'skeleton'){ counts['lane'+u.lane].s++; counts.totalS++; }
-    else if(u.type === 'ranged'){ counts['lane'+u.lane].a++; counts.totalA++; }
-    else counts['lane'+u.lane].other++;
+
+// Threat assessment: calculate danger level of enemy unit
+function assessThreatLevel(unit) {
+  const baseThreats = {
+    giant: 8,        // High HP tank
+    megaknight: 9,   // Very dangerous
+    knight: 5,       // Medium threat
+    swarm: 6,        // Swarm units are dangerous in groups
+    skeleton: 6,
+    ranged: 7,       // Ranged units deal consistent damage
+    melee: 4
+  };
+
+  let threat = baseThreats[unit.type] || 5;
+
+  // Increase threat based on HP
+  if(unit.hp > 400) threat += 2;
+  else if(unit.hp > 200) threat += 1;
+
+  // Increase threat if close to towers
+  const redTowerIds = ['redLeft', 'redRight', 'redKing'];
+  for(const tid of redTowerIds) {
+    const tPos = towerPos(tid);
+    const dist = Math.hypot(unit.x - tPos.x, unit.y - tPos.y);
+    if(dist < 150) threat += 3;
+    else if(dist < 250) threat += 1;
   }
-  return counts;
+
+  return threat;
 }
 
-function aiDecideAndAct(){
-  if(gameOver) return;
-  const now = performance.now()/1000;
+// Find best target for area spell based on unit density and value
+function findBestSpellTarget(side, radius) {
+  const enemies = units.filter(u => u.side === side);
+  if(enemies.length === 0) return null;
 
-  aiDefensiveCheck();
+  let bestPos = null;
+  let bestValue = 0;
 
-  const blueClusters = units.filter(u=>u.side==='blue' && (u.type==='swarm' || u.type==='skeleton' || u.type==='ranged'));
-  if(blueClusters.length >= 4 && aiElixir >= 2){
-    let cx=0, cy=0;
-    for(const u of blueClusters){ cx += u.x; cy += u.y; }
-    cx /= blueClusters.length; cy /= blueClusters.length;
-    let avgDist = 0;
-    for(const u of blueClusters) avgDist += Math.hypot(u.x-cx,u.y-cy);
-    avgDist /= blueClusters.length;
-    if(avgDist > 60 && aiElixir >= 2){
-      const tornadoX = cx + (Math.random() < 0.5 ? -100 : 100);
-      const tornadoY = cy + (Math.random() < 0.5 ? -100 : 100);
-      
-      aiElixir -= 2;
-      castTornado(tornadoX, tornadoY, 'ai');
-      return;
-    } else if(aiElixir >= 3){
+  // Sample grid positions for spell placement
+  for(let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    let value = 0;
+    let count = 0;
+
+    // Count units in radius and sum their threat value
+    for(const other of enemies) {
+      const dist = Math.hypot(e.x - other.x, e.y - other.y);
+      if(dist < radius) {
+        count++;
+        value += assessThreatLevel(other);
+      }
+    }
+
+    // Prefer positions with multiple targets
+    if(count >= 2 && value > bestValue) {
+      bestValue = value;
+      bestPos = { x: e.x, y: e.y, count, value };
+    }
+  }
+
+  return bestPos;
+}
+
+// Get optimal counter unit/spell for a specific threat
+function getCounter(enemy) {
+  // Return { type, cost, spawn } object or null
+  if(!enemy) return null;
+
+  const lane = enemy.lane;
+  const [lx, rx] = laneXs();
+  const x = lane === 0 ? lx : rx;
+  const tid = lane === 0 ? 'redLeft' : 'redRight';
+  const spawnY = towerPos(tid).y + 30;
+
+  // Counter logic based on enemy type
+  if(enemy.type === 'giant' || enemy.type === 'megaknight') {
+    // Use swarm against tanks
+    return {
+      type: 'spawn',
+      cost: 3,
+      action: () => spawn(
+        { id:'skeletons', name:'Skeleton Army', cost:3, hp:40, dmg:14, range:28, speed:50, emoji:'S', count:8, type:'swarm' },
+        'red', x, spawnY
+      )
+    };
+  }
+
+  if(enemy.type === 'swarm' || enemy.type === 'skeleton') {
+    // Use area spell against swarms
+    return {
+      type: 'spell',
+      cost: 3,
+      action: () => castArrows(enemy.x, enemy.y, 'ai')
+    };
+  }
+
+  if(enemy.type === 'ranged') {
+    // Use melee to rush ranged units
+    return {
+      type: 'spawn',
+      cost: 3,
+      action: () => spawn(
+        { id:'knight', name:'Knight', cost:3, hp:250, dmg:20, range:36, speed:38, emoji:'K', type:'melee' },
+        'red', x, spawnY
+      )
+    };
+  }
+
+  // Default: use archers for balanced defense
+  return {
+    type: 'spawn',
+    cost: 3,
+    action: () => spawn(
+      { id:'archers', name:'Archers', cost:3, hp:100, dmg:8, range:120, speed:40, emoji:'A', count:2, type:'ranged' },
+      'red', x, spawnY
+    )
+  };
+}
+
+// Defensive AI: responds to immediate threats to towers
+function aiDefensiveCheck() {
+  if(gameOver) return false;
+  const now = performance.now() / 1000;
+
+  // Rate limiting for defensive actions
+  if(now - aiLastDefense < 0.5) return false;
+
+  const redTowerIds = ['redLeft', 'redRight', 'redKing'];
+  let highestThreat = 0;
+  let mostThreatenedTower = null;
+  let primaryThreat = null;
+
+  // Identify most threatened tower
+  for(const tid of redTowerIds) {
+    const t = towers[tid];
+    const tPos = towerPos(tid);
+
+    // Tower is under pressure if recently damaged or low HP
+    const isUnderPressure =
+      (t.lastDamagedAt && (now - t.lastDamagedAt) < 2.0) ||
+      (t.hp < (TOWER_MAX.crown * 0.6));
+
+    if(!isUnderPressure) continue;
+
+    // Find threats near this tower
+    const nearbyEnemies = units.filter(u => {
+      if(u.side !== 'blue') return false;
+      const dist = Math.hypot(u.x - tPos.x, u.y - tPos.y);
+      return dist < 180;
+    });
+
+    if(nearbyEnemies.length === 0) continue;
+
+    // Calculate total threat level
+    let totalThreat = 0;
+    for(const e of nearbyEnemies) {
+      totalThreat += assessThreatLevel(e);
+    }
+
+    if(totalThreat > highestThreat) {
+      highestThreat = totalThreat;
+      mostThreatenedTower = tid;
+      // Find highest priority threat
+      primaryThreat = nearbyEnemies.reduce((max, u) =>
+        assessThreatLevel(u) > assessThreatLevel(max) ? u : max
+      );
+    }
+  }
+
+  if(!primaryThreat) return false;
+
+  // State transition: enter DEFEND mode if threat is significant
+  if(highestThreat >= 10 && aiCurrentState !== AIState.DEFEND) {
+    aiCurrentState = AIState.DEFEND;
+    aiLastStateChange = now;
+  }
+
+  const tPos = towerPos(mostThreatenedTower);
+  const nearbyEnemies = units.filter(u => {
+    if(u.side !== 'blue') return false;
+    const dist = Math.hypot(u.x - tPos.x, u.y - tPos.y);
+    return dist < 150;
+  });
+
+  // Multi-target area spell logic
+  const swarmCount = nearbyEnemies.filter(e =>
+    e.type === 'swarm' || e.type === 'skeleton' || e.type === 'ranged'
+  ).length;
+
+  // Use arrows against swarm clusters (3+ units)
+  if(swarmCount >= 3 && aiElixir >= 3) {
+    const spellTarget = findBestSpellTarget('blue', 90);
+    if(spellTarget && spellTarget.count >= 3) {
       aiElixir -= 3;
-      castFreeze(cx, cy, 'ai');
-      return;
+      castArrows(spellTarget.x, spellTarget.y, 'ai');
+      aiLastDefense = now;
+      return true;
     }
   }
 
-  if(aiElixir >= 3 && Math.random() < 0.15) {
-    aiElixir -= 3;
-    const targetTower = ['blueLeft', 'blueRight', 'blueKing'][Math.floor(Math.random() * 3)];
-    const pos = towerPos(targetTower);
-    castGoblinBarrel(pos.x, pos.y, 'ai');
-    return;
-  }
+  // Tornado + arrows combo against clustered threats
+  if(swarmCount >= 2 && aiElixir >= 5) {
+    const spellTarget = findBestSpellTarget('blue', 100);
+    if(spellTarget && spellTarget.value >= 12) {
+      aiElixir -= 2;
+      const tornadoX = spellTarget.x;
+      const tornadoY = spellTarget.y;
+      castTornado(tornadoX, tornadoY, 'ai');
 
-  if(aiElixir >= 7 && Math.random() < 0.2) {
-    const blueUnitsNearBridge = units.filter(u => 
-      u.side === 'blue' && 
-      Math.abs(u.y - board.clientHeight * 0.5) < 200
-    );
-    
-    if (blueUnitsNearBridge.length > 0) {
-      aiElixir -= 7;
-      const bridgeX = Math.random() < 0.5 ? bridgeXs()[0] : bridgeXs()[1];
-      const bridgeY = board.clientHeight * 0.5;
-      spawn(
-        { id:'megaknight', name:'Mega Knight', cost:7, hp:MEGAKNIGHT_HP, dmg:MEGAKNIGHT_DMG, range:50, speed:25, emoji:'MK', type:'megaknight' },
-        'red',
-        bridgeX,
-        bridgeY + (Math.random() < 0.5 ? -50 : 50)
-      );
-      return;
-    }
-  }
-
-  if(aiElixir >= 4 && Math.random() < 0.3) {
-    const inferno = buildings.find(b => b.type === 'inferno' && b.side === 'red');
-    if (!inferno || inferno.hp <= 0) {
-      const blueUnitsNearBridge = units.filter(u => 
-        u.side === 'blue' && 
-        Math.abs(u.y - board.clientHeight * 0.5) < 150
-      );
-      
-      if (blueUnitsNearBridge.length > 0) {
-        aiElixir -= 4;
-        const bridgeX = Math.random() < 0.5 ? bridgeXs()[0] : bridgeXs()[1];
-        const bridgeY = board.clientHeight * 0.5;
-        spawnBuilding(
-          { id:'inferno', name:'Inferno Tower', cost:4, building:true, hp:700, dps:48, emoji:'I', decaySeconds:45 },
-          'red',
-          bridgeX,
-          bridgeY + (Math.random() < 0.5 ? -50 : 50)
+      // Follow up with arrows if still threatened
+      setTimeout(() => {
+        if(gameOver || aiElixir < 3) return;
+        const cluster = units.filter(u =>
+          u.side === 'blue' &&
+          Math.hypot(u.x - tornadoX, u.y - tornadoY) < 110
         );
-        return;
-      }
-    }
-  }
-
-  if(aiElixir >= 2) {
-    const highHpTroops = units.filter(u => 
-      u.side === 'red' && 
-      u.hp > u.maxHp * 0.7 && 
-      (u.type === 'giant' || u.type === 'knight' || u.type === 'megaknight')
-    );
-    
-    for(const troop of highHpTroops) {
-      const enemySide = 'blue';
-      const enemyLeftId = enemySide + 'Left';
-      const enemyRightId = enemySide + 'Right';
-      const enemyKingId = enemySide + 'King';
-      
-      let nearTower = false;
-      if(troop.lane === 0 && towers[enemyLeftId].hp > 0) {
-        const pos = towerPos(enemyLeftId);
-        if(Math.hypot(troop.x - pos.x, troop.y - pos.y) < 100) nearTower = true;
-      } else if(troop.lane === 1 && towers[enemyRightId].hp > 0) {
-        const pos = towerPos(enemyRightId);
-        if(Math.hypot(troop.x - pos.x, troop.y - pos.y) < 100) nearTower = true;
-      } else {
-        const pos = towerPos(enemyKingId);
-        if(Math.hypot(troop.x - pos.x, troop.y - pos.y) < 100) nearTower = true;
-      }
-      
-      if(nearTower) {
-        aiElixir -= 2;
-        castRage(troop.x, troop.y, 'ai');
-        return;
-      }
-    }
-  }
-
-  if(aiElixir >= AI_PUSH_THRESHOLD && (now - aiLastPushTime) > 5.0){
-    const counts = aiEvaluateBoard();
-    const lane0Def = counts.lane0.s + counts.lane0.a + counts.lane0.other;
-    const lane1Def = counts.lane1.s + counts.lane1.a + counts.lane1.other;
-    const lane = lane0Def <= lane1Def ? 0 : 1;
-    const [lx,rx] = laneXs();
-    const x = lane===0?lx:rx;
-    const y = board.clientHeight*0.25 + (Math.random()*40 - 20);
-
-    if(aiElixir >= 7 && Math.random() < 0.3) {
-      aiElixir -= 7;
-      spawn({ id:'megaknight', name:'Mega Knight', cost:7, hp:MEGAKNIGHT_HP, dmg:MEGAKNIGHT_DMG, range:50, speed:25, emoji:'MK', type:'megaknight' }, 'red', x, y);
-    } else if(aiElixir >= 4){
-      aiElixir -= 4;
-      spawn({ id:'giant', name:'Giant', cost:4, hp:800, dmg:95, range:30, speed:15, emoji:'G', type:'giant' }, 'red', x, y);
-    }
-    setTimeout(()=>{
-      if(aiElixir >= 3){
-        aiElixir -= 3;
-        spawn({ id:'knight', name:'Knight', cost:3, hp:250, dmg:20, range:36, speed:38, emoji:'K', type:'melee' }, 'red', x + (lane===0? -10:10), y + 18);
-      }
-      setTimeout(()=>{
-        if(aiElixir >= 3){
+        if(cluster.length >= 2) {
           aiElixir -= 3;
-          spawn({ id:'archers', name:'Archers', cost:3, hp:100, dmg:8, range:120, speed:40, emoji:'A', count:2, type:'ranged' }, 'red', x + (lane===0? -8:8), y + 18);
+          castArrows(tornadoX, tornadoY, 'ai');
         }
-      }, 600);
+      }, 300);
+
+      aiLastDefense = now;
+      return true;
+    }
+  }
+
+  // Deploy optimal counter unit
+  const counter = getCounter(primaryThreat);
+  if(counter && aiElixir >= counter.cost) {
+    aiElixir -= counter.cost;
+    counter.action();
+    aiLastDefense = now;
+    return true;
+  }
+
+  return false;
+}
+
+// Offensive AI: builds calculated pushes with elixir management
+function aiOffensivePush() {
+  if(gameOver) return false;
+  const now = performance.now() / 1000;
+
+  // Don't push if recently pushed or low elixir
+  if(now - aiLastPushTime < 6.0 || aiElixir < AI_PUSH_THRESHOLD) return false;
+
+  // Analyze board state to choose lane
+  const blueUnits = units.filter(u => u.side === 'blue');
+  const lane0Enemies = blueUnits.filter(u => u.lane === 0).length;
+  const lane1Enemies = blueUnits.filter(u => u.lane === 1).length;
+
+  // Choose lane with fewer defenders
+  const lane = lane0Enemies <= lane1Enemies ? 0 : 1;
+  const [lx, rx] = laneXs();
+  const x = lane === 0 ? lx : rx;
+  const y = board.clientHeight * 0.25;
+
+  // State transition: enter PUSH mode
+  aiCurrentState = AIState.PUSH;
+  aiLastStateChange = now;
+  aiElixirInvestment = 0;
+
+  // Choose push composition based on elixir
+  let tankCard = null;
+  if(aiElixir >= 7 && Math.random() < 0.35) {
+    // High elixir: Mega Knight push
+    tankCard = { id:'megaknight', name:'Mega Knight', cost:7, hp:MEGAKNIGHT_HP, dmg:MEGAKNIGHT_DMG, range:50, speed:25, emoji:'MK', type:'megaknight' };
+  } else if(aiElixir >= 4) {
+    // Standard: Giant push
+    tankCard = { id:'giant', name:'Giant', cost:4, hp:800, dmg:95, range:30, speed:15, emoji:'G', type:'giant' };
+  }
+
+  if(tankCard) {
+    aiElixir -= tankCard.cost;
+    aiElixirInvestment += tankCard.cost;
+    spawn(tankCard, 'red', x, y);
+
+    // Deploy support units behind tank
+    setTimeout(() => {
+      if(gameOver) return;
+
+      // Add melee support
+      if(aiElixir >= 3) {
+        aiElixir -= 3;
+        aiElixirInvestment += 3;
+        spawn(
+          { id:'knight', name:'Knight', cost:3, hp:250, dmg:20, range:36, speed:38, emoji:'K', type:'melee' },
+          'red', x + (lane === 0 ? -12 : 12), y + 20
+        );
+      }
+
+      // Add ranged support
+      setTimeout(() => {
+        if(gameOver || aiElixir < 3) return;
+        aiElixir -= 3;
+        aiElixirInvestment += 3;
+        spawn(
+          { id:'archers', name:'Archers', cost:3, hp:100, dmg:8, range:120, speed:40, emoji:'A', count:2, type:'ranged' },
+          'red', x + (lane === 0 ? -8 : 8), y + 22
+        );
+      }, 700);
     }, 600);
 
-    setTimeout(()=>{
-      if(aiElixir >= 2 && Math.random() < 0.6){
-        aiElixir -= 2;
-        const tornadoX = x + (lane===0? 120:-120);
-        const tornadoY = y - 40;
-        castTornado(tornadoX, tornadoY, 'ai');
-      } else if(aiElixir >= 3 && Math.random() < 0.4){
-        aiElixir -= 3;
-        castFreeze(x + (lane===0? 40:-40), y - 40, 'ai');
+    // Support spell if high investment
+    setTimeout(() => {
+      if(gameOver || aiElixirInvestment < 7) return;
+
+      // Use rage if units are near enemy tower
+      if(aiElixir >= 2) {
+        const pushUnits = units.filter(u =>
+          u.side === 'red' && u.lane === lane && u.y > board.clientHeight * 0.5
+        );
+
+        if(pushUnits.length >= 2) {
+          let cx = 0, cy = 0;
+          for(const u of pushUnits) { cx += u.x; cy += u.y; }
+          cx /= pushUnits.length;
+          cy /= pushUnits.length;
+
+          aiElixir -= 2;
+          castRage(cx, cy, 'ai');
+        }
       }
-    }, 900);
+    }, 1200);
 
     aiLastPushTime = now;
+    return true;
+  }
+
+  return false;
+}
+
+// Opportunistic spell usage: find high-value spell targets
+function aiOpportunisticSpells() {
+  if(gameOver) return false;
+
+  // Goblin Barrel on damaged towers (chip damage)
+  if(aiElixir >= 3 && Math.random() < 0.12) {
+    const targetTowers = ['blueLeft', 'blueRight', 'blueKing']
+      .filter(id => towers[id].hp > 0 && towers[id].hp < TOWER_MAX.crown * 0.4);
+
+    if(targetTowers.length > 0) {
+      const target = targetTowers[Math.floor(Math.random() * targetTowers.length)];
+      const pos = towerPos(target);
+      aiElixir -= 3;
+      castGoblinBarrel(pos.x, pos.y, 'ai');
+      return true;
+    }
+  }
+
+  // Freeze high-value clusters
+  const spellTarget = findBestSpellTarget('blue', 120);
+  if(spellTarget && spellTarget.value >= 15 && aiElixir >= 3) {
+    aiElixir -= 3;
+    castFreeze(spellTarget.x, spellTarget.y, 'ai');
+    return true;
+  }
+
+  return false;
+}
+
+// Reactive building placement
+function aiReactiveBuilding() {
+  if(gameOver) return false;
+
+  // Deploy Inferno Tower against heavy units crossing bridge
+  const bridgeY = board.clientHeight * 0.5;
+  const heavyUnitsNearBridge = units.filter(u =>
+    u.side === 'blue' &&
+    Math.abs(u.y - bridgeY) < 150 &&
+    (u.type === 'giant' || u.type === 'megaknight' || u.hp > 300)
+  );
+
+  if(heavyUnitsNearBridge.length > 0 && aiElixir >= 4) {
+    const inferno = buildings.find(b => b.type === 'inferno' && b.side === 'red' && b.hp > 0);
+    if(!inferno) {
+      const targetUnit = heavyUnitsNearBridge[0];
+      const bridgeX = targetUnit.lane === 0 ? bridgeXs()[0] : bridgeXs()[1];
+
+      aiElixir -= 4;
+      spawnBuilding(
+        { id:'inferno', name:'Inferno Tower', cost:4, building:true, hp:700, dps:48, emoji:'I', decaySeconds:45 },
+        'red', bridgeX, bridgeY + 40
+      );
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Support existing pushes with spells
+function aiSupportPush() {
+  if(gameOver) return false;
+
+  // Find our units near enemy towers
+  const redUnitsNearEnemy = units.filter(u => {
+    if(u.side !== 'red') return false;
+    const enemyTowers = ['blueLeft', 'blueRight', 'blueKing'];
+    for(const tid of enemyTowers) {
+      const pos = towerPos(tid);
+      if(Math.hypot(u.x - pos.x, u.y - pos.y) < 120) return true;
+    }
+    return false;
+  });
+
+  if(redUnitsNearEnemy.length >= 2 && aiElixir >= 2) {
+    // Calculate centroid
+    let cx = 0, cy = 0;
+    for(const u of redUnitsNearEnemy) { cx += u.x; cy += u.y; }
+    cx /= redUnitsNearEnemy.length;
+    cy /= redUnitsNearEnemy.length;
+
+    // Use rage if units are healthy
+    const avgHp = redUnitsNearEnemy.reduce((sum, u) => sum + (u.hp / u.maxHp), 0) / redUnitsNearEnemy.length;
+    if(avgHp > 0.6) {
+      aiElixir -= 2;
+      castRage(cx, cy, 'ai');
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Main AI decision loop with state machine
+function aiDecideAndAct() {
+  if(gameOver) return;
+  const now = performance.now() / 1000;
+
+  // Priority 1: Defense (always check first)
+  if(aiDefensiveCheck()) {
+    return; // Handled a defensive action
+  }
+
+  // Priority 2: Opportunistic spells for value
+  if(aiOpportunisticSpells()) {
     return;
   }
 
-  // AI card cycling - only use current card
-  if(aiElixir >= 3 && Math.random() < 0.22){
+  // Priority 3: Reactive buildings
+  if(aiReactiveBuilding()) {
+    return;
+  }
+
+  // Priority 4: Support existing pushes
+  if(aiSupportPush()) {
+    return;
+  }
+
+  // Priority 5: Build offensive push
+  if(aiOffensivePush()) {
+    return;
+  }
+
+  // State decay: return to CYCLE if no threats for a while
+  if(aiCurrentState === AIState.DEFEND && now - aiLastStateChange > 4.0) {
+    aiCurrentState = AIState.CYCLE;
+  }
+
+  // Priority 6: Card cycling at high elixir (avoid waste)
+  if(aiElixir >= 8 && Math.random() < 0.25) {
     const currentCard = aiDeck[aiCurrentCardIndex];
     if(currentCard && currentCard.cost <= aiElixir) {
       aiElixir -= currentCard.cost;
-      
+
       if(currentCard.spell) {
-        if(currentCard.id === 'tornado') {
-          const x = Math.random()*board.clientWidth;
-          const y = board.clientHeight*0.6 + Math.random()*board.clientHeight*0.2;
-          castTornado(x,y,'ai');
-        } else if(currentCard.id === 'freeze') {
-          const x = Math.random()*board.clientWidth;
-          const y = board.clientHeight*0.6 + Math.random()*board.clientHeight*0.2;
-          castFreeze(x,y,'ai');
+        // Smart spell targeting
+        const target = findBestSpellTarget('blue', 100);
+        if(target) {
+          if(currentCard.id === 'tornado') castTornado(target.x, target.y, 'ai');
+          else if(currentCard.id === 'freeze') castFreeze(target.x, target.y, 'ai');
+          else if(currentCard.id === 'arrows') castArrows(target.x, target.y, 'ai');
+          else if(currentCard.id === 'fireball') castFireball(target.x, target.y, 'ai');
+          else if(currentCard.id === 'zap') castZap(target.x, target.y, 'ai');
+          else if(currentCard.id === 'poison') castPoison(target.x, target.y, 'ai');
+          else if(currentCard.id === 'lightning') castLightning(target.x, target.y, 'ai');
+          else if(currentCard.id === 'rocket') castRocket(target.x, target.y, 'ai');
+          else castArrows(target.x, target.y, 'ai');
         } else if(currentCard.id === 'goblinBarrel') {
-          const targetTower = ['blueLeft', 'blueRight', 'blueKing'][Math.floor(Math.random() * 3)];
-          const pos = towerPos(targetTower);
+          const pos = towerPos('blueKing');
           castGoblinBarrel(pos.x, pos.y, 'ai');
         } else if(currentCard.id === 'rage') {
-          const x = Math.random()*board.clientWidth;
-          const y = board.clientHeight*0.6 + Math.random()*board.clientHeight*0.2;
-          castRage(x,y,'ai');
-        } else if(currentCard.id === 'fireball') {
-          const x = Math.random()*board.clientWidth;
-          const y = board.clientHeight*0.6 + Math.random()*board.clientHeight*0.2;
-          castFireball(x,y,'ai');
-        } else if(currentCard.id === 'zap') {
-          const x = Math.random()*board.clientWidth;
-          const y = board.clientHeight*0.6 + Math.random()*board.clientHeight*0.2;
-          castZap(x,y,'ai');
-        } else if(currentCard.id === 'poison') {
-          const x = Math.random()*board.clientWidth;
-          const y = board.clientHeight*0.6 + Math.random()*board.clientHeight*0.2;
-          castPoison(x,y,'ai');
-        } else if(currentCard.id === 'lightning') {
-          const x = Math.random()*board.clientWidth;
-          const y = board.clientHeight*0.6 + Math.random()*board.clientHeight*0.2;
-          castLightning(x,y,'ai');
-        } else if(currentCard.id === 'rocket') {
-          const x = Math.random()*board.clientWidth;
-          const y = board.clientHeight*0.6 + Math.random()*board.clientHeight*0.2;
-          castRocket(x,y,'ai');
-        } else {
-          const x = Math.random()*board.clientWidth;
-          const y = board.clientHeight*0.6 + Math.random()*board.clientHeight*0.2;
-          castArrows(x,y,'ai');
+          const x = board.clientWidth * 0.5;
+          const y = board.clientHeight * 0.6;
+          castRage(x, y, 'ai');
         }
       } else if(currentCard.building) {
         const bridgeX = Math.random() < 0.5 ? bridgeXs()[0] : bridgeXs()[1];
         const bridgeY = board.clientHeight * 0.5;
-        spawnBuilding(currentCard, 'red', bridgeX, bridgeY + (Math.random() < 0.5 ? -50 : 50));
+        spawnBuilding(currentCard, 'red', bridgeX, bridgeY + 40);
       } else {
-        const lane = Math.floor(Math.random()*2);
-        const [lx,rx] = laneXs();
-        const x = lane===0?lx:rx;
-        const y = board.clientHeight*0.25 + (Math.random()*40 - 20);
-        spawn(currentCard,'red',x,y);
+        // Deploy unit in random lane
+        const lane = Math.floor(Math.random() * 2);
+        const [lx, rx] = laneXs();
+        const x = lane === 0 ? lx : rx;
+        const y = board.clientHeight * 0.25;
+        spawn(currentCard, 'red', x, y);
       }
-      
+
       aiCurrentCardIndex = (aiCurrentCardIndex + 1) % aiDeck.length;
     }
   }
