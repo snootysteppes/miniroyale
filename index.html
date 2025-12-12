@@ -108,6 +108,7 @@
   .hand{display:flex;gap:10px;justify-content:flex-end;align-items:center}
   .card{background:#1a2635;border:2px solid #4f6a86;color:#eaf4ff;border-radius:10px;height:86px;display:grid;grid-template-rows:1fr auto;cursor:grab;user-select:none;padding:6px;min-width:92px;transition:all 0.2s ease}
   .card:hover{transform:translateY(-5px);box-shadow:0 5px 15px rgba(0,0,0,0.3)}
+  .cardEmoji{font-size:28px;text-align:center;margin-top:4px}
   .cardName{display:grid;place-items:center;font-weight:800;font-size:13px;padding:4px}
   .cardCost{background:#0f1826;border-top:1px solid #0b1624;color:var(--gold);font-size:12px;text-align:center;padding:4px 0;border-radius:0 0 8px 8px}
   .ghost{position:fixed;width:18px;height:18px;border-radius:50%;background:rgba(167,133,255,0.8);pointer-events:none;box-shadow:0 0 10px rgba(167,133,255,0.8);transform:translate(-50%,-50%);z-index:9999}
@@ -144,6 +145,7 @@
   .selectable-card{background:#1a2635;border:2px solid #4f6a86;color:#eaf4ff;border-radius:8px;padding:8px;text-align:center;cursor:pointer}
   .selectable-card:hover{border-color:#6aa6ff}
   .selectable-card.selected{border-color:#a785ff;background:#2a3645}
+  .selectable-card-emoji{font-size:24px;margin-bottom:4px}
   .selectable-card .name{font-weight:bold;font-size:12px;margin-bottom:4px}
   .selectable-card .cost{color:var(--gold);font-size:11px}
   .back-button{background:linear-gradient(135deg,#4a6fa5,#3b5998);color:white;border:none;border-radius:8px;padding:10px 20px;font-size:16px;margin:10px;cursor:pointer;transition:transform 0.2s}
@@ -567,6 +569,15 @@ function drawHand(){
   for(const c of visible){
     const cardEl = document.createElement('div');
     cardEl.className = 'card';
+
+    // Add emoji/icon if available
+    if(c.emoji){
+      const emojiEl = document.createElement('div');
+      emojiEl.className = 'cardEmoji';
+      emojiEl.textContent = c.emoji;
+      cardEl.appendChild(emojiEl);
+    }
+
     const nameEl = document.createElement('div'); nameEl.className='cardName'; nameEl.textContent = c.name;
     const costEl = document.createElement('div'); costEl.className='cardCost'; costEl.textContent = `Cost ${c.cost}`;
     cardEl.appendChild(nameEl); cardEl.appendChild(costEl);
@@ -602,20 +613,28 @@ function openDeckEditor() {
     const cardEl = document.createElement('div');
     cardEl.className = 'selectable-card';
     cardEl.dataset.cardId = card.id;
-    
+
+    // Add emoji/icon if available
+    if(card.emoji){
+      const emojiEl = document.createElement('div');
+      emojiEl.className = 'selectable-card-emoji';
+      emojiEl.textContent = card.emoji;
+      cardEl.appendChild(emojiEl);
+    }
+
     const nameEl = document.createElement('div');
     nameEl.className = 'name';
     nameEl.textContent = card.name;
-    
+
     const costEl = document.createElement('div');
     costEl.className = 'cost';
     costEl.textContent = `Cost: ${card.cost}`;
-    
+
     cardEl.appendChild(nameEl);
     cardEl.appendChild(costEl);
-    
+
     cardEl.addEventListener('click', () => toggleCardSelection(card));
-    
+
     cardSelection.appendChild(cardEl);
   });
 }
@@ -1349,6 +1368,11 @@ function acquireTargetForUnit(u){
   if(u.type === 'giant' || u.type === 'megaknight' || u.type === 'hogrider' || u.target === 'building'){
     const nb = nearestEnemyBuilding(u, 260);
     if(nb){ u.targetId = nb.id; return; }
+
+    // If no buildings found, target towers directly
+    const tid = targetTowerId(u);
+    u.targetId = tid;
+    return;
   }
 
   const tid = targetTowerId(u);
@@ -2168,6 +2192,11 @@ function tickUnit(u, dt){
   if(u.type === 'giant' || u.type === 'megaknight' || u.type === 'hogrider' || u.target === 'building'){
     const nb = nearestEnemyBuilding(u, 260);
     if(nb){ u.targetId = nb.id; return; }
+
+    // If no buildings found, target towers directly
+    const tid = targetTowerId(u);
+    u.targetId = tid;
+    return;
   }
 
   // Movement with bridge pathing
