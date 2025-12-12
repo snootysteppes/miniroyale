@@ -133,21 +133,25 @@
   .menu-button{background:linear-gradient(135deg,#4a6fa5,#3b5998);color:white;border:none;border-radius:8px;padding:12px 24px;font-size:18px;margin:10px;cursor:pointer;transition:transform 0.2s}
   .menu-button:hover{transform:scale(1.05)}
   .deck-editor{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}
-  .card-slot{background:rgba(74,111,165,0.2);border:2px dashed #4a6fa5;border-radius:8px;padding:10px;min-height:100px;cursor:pointer}
-  .card-slot.selected{background:rgba(74,111,165,0.4);border-color:#6aa6ff}
-  .card-preview{background:#1a2635;border:2px solid #4f6a86;color:#eaf4ff;border-radius:8px;padding:8px;text-align:center}
-  .card-preview .name{font-weight:bold;font-size:14px;margin-bottom:4px}
-  .card-preview .cost{color:var(--gold);font-size:12px}
+  .card-slot{background:rgba(74,111,165,0.2);border:2px dashed #4a6fa5;border-radius:8px;padding:10px;min-height:110px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+  .card-slot.drag-over{background:rgba(106,166,255,0.4);border-color:#6aa6ff;transform:scale(1.05)}
+  .card-slot.filled{background:rgba(74,111,165,0.3);border:2px solid #6aa6ff}
+  .card-preview{background:#1a2635;border:2px solid #4f6a86;color:#eaf4ff;border-radius:8px;padding:8px;text-align:center;width:100%;cursor:move}
+  .card-preview:hover{border-color:#a785ff}
+  .card-preview .emoji{font-size:28px;margin-bottom:4px}
+  .card-preview .name{font-weight:bold;font-size:13px;margin-bottom:4px}
+  .card-preview .cost{color:var(--gold);font-size:11px}
   .deck-info{margin-top:20px;color:#cbd5e1}
   .start-button{background:linear-gradient(135deg,#ff6b6b,#ff3d3d);color:white;border:none;border-radius:8px;padding:12px 24px;font-size:18px;margin-top:20px;cursor:pointer;transition:transform 0.2s}
   .start-button:hover{transform:scale(1.05)}
-  .card-selection{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0;max-height:400px;overflow-y:auto}
-  .selectable-card{background:#1a2635;border:2px solid #4f6a86;color:#eaf4ff;border-radius:8px;padding:8px;text-align:center;cursor:pointer}
-  .selectable-card:hover{border-color:#6aa6ff}
-  .selectable-card.selected{border-color:#a785ff;background:#2a3645}
-  .selectable-card-emoji{font-size:24px;margin-bottom:4px}
-  .selectable-card .name{font-weight:bold;font-size:12px;margin-bottom:4px}
-  .selectable-card .cost{color:var(--gold);font-size:11px}
+  .card-selection{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:20px 0;max-height:300px;overflow-y:auto;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px}
+  .selectable-card{background:#1a2635;border:2px solid #4f6a86;color:#eaf4ff;border-radius:8px;padding:10px;text-align:center;cursor:grab;transition:all 0.2s;user-select:none}
+  .selectable-card:active{cursor:grabbing}
+  .selectable-card:hover{border-color:#6aa6ff;transform:translateY(-3px)}
+  .selectable-card.in-deck{opacity:0.5;border-color:#888}
+  .selectable-card-emoji{font-size:32px;margin-bottom:6px}
+  .selectable-card .name{font-weight:bold;font-size:11px;margin-bottom:4px}
+  .selectable-card .cost{color:var(--gold);font-size:10px}
   .back-button{background:linear-gradient(135deg,#4a6fa5,#3b5998);color:white;border:none;border-radius:8px;padding:10px 20px;font-size:16px;margin:10px;cursor:pointer;transition:transform 0.2s}
   .back-button:hover{transform:scale(1.05)}
   .rage-area{position:absolute;border-radius:50%;background:rgba(167,133,255,0.3);pointer-events:none;z-index:3}
@@ -261,11 +265,23 @@
 
   <!-- Deck Editor Menu (Hidden by default) -->
   <div class="home-menu" id="deckEditorMenu" style="display:none;">
-    <div class="menu-container">
+    <div class="menu-container" style="max-width:800px;">
       <div class="menu-title">Deck Editor</div>
-      <div class="deck-info">Select 8 cards for your deck</div>
-      <div class="card-selection" id="cardSelection"></div>
-      <div class="deck-info" id="selectedCount">Selected: 0/8</div>
+      <div class="deck-info" style="margin-bottom:15px;">Drag cards into 8 slots below</div>
+
+      <!-- 8 Deck Slots -->
+      <div style="margin-bottom:20px;">
+        <div style="font-weight:bold;margin-bottom:10px;color:#cbd5e1;">Your Deck (Drag cards here)</div>
+        <div class="deck-editor" id="deckSlots"></div>
+      </div>
+
+      <!-- Available Cards -->
+      <div>
+        <div style="font-weight:bold;margin-bottom:10px;color:#cbd5e1;">Available Cards</div>
+        <div class="card-selection" id="cardSelection"></div>
+      </div>
+
+      <div class="deck-info" id="selectedCount">Cards in deck: 0/8</div>
       <button class="back-button" onclick="backToMenu()">Back</button>
       <button class="start-button" id="saveDeckButton" onclick="saveDeck()" disabled>Save Deck</button>
     </div>
@@ -784,77 +800,152 @@ function cycleTopCard(){
 }
 
 /* -------------------------
-   DECK EDITOR
+   DECK EDITOR - DRAG AND DROP
    ------------------------- */
+let deckSlots = [null, null, null, null, null, null, null, null];
+
 function openDeckEditor() {
   homeMenu.style.display = 'none';
   deckEditorMenu.style.display = 'grid';
-  
-  // Clear previous selections
-  cardSelection.innerHTML = '';
-  selectedCards = [];
-  updateSelectedCount();
-  
-  // Create card selection UI
+
+  // Load existing deck if available
+  const savedDeck = loadDeckFromStorage();
+  if (savedDeck && savedDeck.length === 8) {
+    deckSlots = [...savedDeck];
+  } else {
+    deckSlots = [null, null, null, null, null, null, null, null];
+  }
+
+  renderDeckEditor();
+}
+
+function renderDeckEditor() {
+  const deckSlotsEl = document.getElementById('deckSlots');
+  const cardSelectionEl = document.getElementById('cardSelection');
+
+  // Render deck slots
+  deckSlotsEl.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const slotEl = document.createElement('div');
+    slotEl.className = 'card-slot';
+    slotEl.dataset.slotIndex = i;
+
+    if (deckSlots[i]) {
+      slotEl.classList.add('filled');
+      const card = deckSlots[i];
+      const previewEl = document.createElement('div');
+      previewEl.className = 'card-preview';
+      previewEl.draggable = true;
+      previewEl.dataset.cardId = card.id;
+      previewEl.dataset.fromSlot = i;
+      previewEl.innerHTML = `
+        <div class="emoji">${card.emoji || '❓'}</div>
+        <div class="name">${card.name}</div>
+        <div class="cost">💧 ${card.cost}</div>
+      `;
+
+      previewEl.addEventListener('dragstart', onDeckCardDragStart);
+      slotEl.appendChild(previewEl);
+    } else {
+      slotEl.innerHTML = '<div style="color:#4a6fa5;font-size:12px;">Drop Here</div>';
+    }
+
+    slotEl.addEventListener('dragover', onSlotDragOver);
+    slotEl.addEventListener('dragleave', onSlotDragLeave);
+    slotEl.addEventListener('drop', onSlotDrop);
+
+    deckSlotsEl.appendChild(slotEl);
+  }
+
+  // Render available cards
+  cardSelectionEl.innerHTML = '';
   allCards.forEach(card => {
     const cardEl = document.createElement('div');
     cardEl.className = 'selectable-card';
+    cardEl.draggable = true;
     cardEl.dataset.cardId = card.id;
 
-    // Add emoji/icon if available
-    if(card.emoji){
-      const emojiEl = document.createElement('div');
-      emojiEl.className = 'selectable-card-emoji';
-      emojiEl.textContent = card.emoji;
-      cardEl.appendChild(emojiEl);
+    // Check if card is in deck
+    const inDeck = deckSlots.some(c => c && c.id === card.id);
+    if (inDeck) {
+      cardEl.classList.add('in-deck');
     }
 
-    const nameEl = document.createElement('div');
-    nameEl.className = 'name';
-    nameEl.textContent = card.name;
+    cardEl.innerHTML = `
+      <div class="selectable-card-emoji">${card.emoji || '❓'}</div>
+      <div class="name">${card.name}</div>
+      <div class="cost">💧 ${card.cost}</div>
+    `;
 
-    const costEl = document.createElement('div');
-    costEl.className = 'cost';
-    costEl.textContent = `Cost: ${card.cost}`;
-
-    cardEl.appendChild(nameEl);
-    cardEl.appendChild(costEl);
-
-    cardEl.addEventListener('click', () => toggleCardSelection(card));
-
-    cardSelection.appendChild(cardEl);
+    cardEl.addEventListener('dragstart', onCardDragStart);
+    cardSelectionEl.appendChild(cardEl);
   });
-}
 
-let selectedCards = [];
-
-function toggleCardSelection(card) {
-  const cardEl = document.querySelector(`[data-card-id="${card.id}"]`);
-  const index = selectedCards.findIndex(c => c.id === card.id);
-  
-  if (index === -1) {
-    // Add card if not already selected and under limit
-    if (selectedCards.length < 8) {
-      selectedCards.push(card);
-      cardEl.classList.add('selected');
-    }
-  } else {
-    // Remove card if already selected
-    selectedCards.splice(index, 1);
-    cardEl.classList.remove('selected');
-  }
-  
   updateSelectedCount();
 }
 
+function onCardDragStart(e) {
+  const cardId = e.target.dataset.cardId;
+  e.dataTransfer.setData('cardId', cardId);
+  e.dataTransfer.effectAllowed = 'copy';
+}
+
+function onDeckCardDragStart(e) {
+  const cardId = e.target.dataset.cardId;
+  const fromSlot = e.target.dataset.fromSlot;
+  e.dataTransfer.setData('cardId', cardId);
+  e.dataTransfer.setData('fromSlot', fromSlot);
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onSlotDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+
+function onSlotDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function onSlotDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+
+  const slotIndex = parseInt(e.currentTarget.dataset.slotIndex);
+  const cardId = e.dataTransfer.getData('cardId');
+  const fromSlot = e.dataTransfer.getData('fromSlot');
+
+  // Find the card
+  const card = allCards.find(c => c.id === cardId);
+  if (!card) return;
+
+  // If dragging from another slot, swap or move
+  if (fromSlot !== '') {
+    const fromIndex = parseInt(fromSlot);
+    const temp = deckSlots[slotIndex];
+    deckSlots[slotIndex] = deckSlots[fromIndex];
+    deckSlots[fromIndex] = temp;
+  } else {
+    // Adding from card selection - only if not already in deck
+    const alreadyInDeck = deckSlots.some(c => c && c.id === cardId);
+    if (!alreadyInDeck) {
+      deckSlots[slotIndex] = card;
+    }
+  }
+
+  renderDeckEditor();
+}
+
 function updateSelectedCount() {
-  selectedCount.textContent = `Selected: ${selectedCards.length}/8`;
-  saveDeckButton.disabled = selectedCards.length !== 8;
+  const count = deckSlots.filter(c => c !== null).length;
+  selectedCount.textContent = `Cards in deck: ${count}/8`;
+  saveDeckButton.disabled = count !== 8;
 }
 
 function saveDeck() {
-  if (selectedCards.length === 8) {
-    currentDeck = [...selectedCards];
+  const validCards = deckSlots.filter(c => c !== null);
+  if (validCards.length === 8) {
+    currentDeck = [...validCards];
     saveDeckToStorage(currentDeck);
     backToMenu();
   }
@@ -1500,18 +1591,21 @@ function forceRetargetAfterTowerDeath(destroyedTowerSide){
     if (u.side !== attackersSide) continue;
     if (typeof u.targetId === 'string' && towers[u.targetId] && towers[u.targetId].hp <= 0) u.targetId = null;
 
+    // Get river position for crossing check
+    const rect = board.getBoundingClientRect();
+    const riverY = rect.height * 0.5;
+    const hasCrossedRiver = (u.side === 'blue' && u.y < riverY) || (u.side === 'red' && u.y > riverY);
+
     if(u.lane === 0){
       const enemyLeftId = (u.side === 'blue') ? 'redLeft' : 'blueLeft';
       if(towers[enemyLeftId].hp < 1){
         const enemyKing = (u.side === 'blue') ? 'redKing' : 'blueKing';
         u.targetId = enemyKing;
         const pos = towerPos(enemyKing);
-        const offset = 50; // Keep troops NEAR the tower, not at the bridge
-        const snapX = laneXs()[0];
-        const snapY = (u.side === 'blue') ? (pos.y + offset) : (pos.y - offset);
-        // Only move if troop has actually reached close to tower
         const distToKing = Math.hypot(u.x - pos.x, u.y - pos.y);
-        if(distToKing < 200) {
+        // Only snap if close to king AND has crossed river via bridge
+        if(distToKing < 200 && hasCrossedRiver) {
+          const snapX = laneXs()[0];
           u.x += (snapX - u.x) * 0.3;
         }
         continue;
@@ -1523,12 +1617,10 @@ function forceRetargetAfterTowerDeath(destroyedTowerSide){
         const enemyKing = (u.side === 'blue') ? 'redKing' : 'blueKing';
         u.targetId = enemyKing;
         const pos = towerPos(enemyKing);
-        const offset = 50; // Keep troops NEAR the tower, not at the bridge
-        const snapX = laneXs()[1];
-        const snapY = (u.side === 'blue') ? (pos.y + offset) : (pos.y - offset);
-        // Only move if troop has actually reached close to tower
         const distToKing = Math.hypot(u.x - pos.x, u.y - pos.y);
-        if(distToKing < 200) {
+        // Only snap if close to king AND has crossed river via bridge
+        if(distToKing < 200 && hasCrossedRiver) {
+          const snapX = laneXs()[1];
           u.x += (snapX - u.x) * 0.3;
         }
         continue;
@@ -1538,12 +1630,10 @@ function forceRetargetAfterTowerDeath(destroyedTowerSide){
     if(bothCrownsDown){
       u.targetId = kingId;
       const pos = towerPos(kingId);
-      const offset = 50; // Keep troops NEAR the tower, not at the bridge
-      const snapX = (u.lane === 0 ? laneXs()[0] : laneXs()[1]);
-      const snapY = (u.side === 'blue') ? (pos.y + offset) : (pos.y - offset);
-      // Only move if troop has actually reached close to tower
       const distToKing = Math.hypot(u.x - pos.x, u.y - pos.y);
-      if(distToKing < 200) {
+      // Only snap if close to king AND has crossed river via bridge
+      if(distToKing < 200 && hasCrossedRiver) {
+        const snapX = (u.lane === 0 ? laneXs()[0] : laneXs()[1]);
         u.x += (snapX - u.x) * 0.3;
       }
       continue;
@@ -2487,27 +2577,26 @@ function tickUnit(u, dt){
   const enemySide = u.side === 'blue' ? 'red' : 'blue';
   const enemyLeftId = enemySide + 'Left';
   const enemyRightId = enemySide + 'Right';
-  if(u.lane === 0 && towers[enemyLeftId].hp < 1){
+
+  // Check if targeting king tower (after princess tower is down)
+  const targetingKing = (u.lane === 0 && towers[enemyLeftId].hp < 1) ||
+                        (u.lane === 1 && towers[enemyRightId].hp < 1);
+
+  if(targetingKing){
     u.targetId = enemySide + 'King';
     const kingPos = towerPos(u.targetId);
     const distToKing = Math.hypot(u.x - kingPos.x, u.y - kingPos.y);
-    // Only snap if close to king tower
-    if(distToKing < 200) {
-      const snapX = laneXs()[0];
+
+    // Check if unit has crossed the river/bridge
+    const riverY = rect.height * 0.5;
+    const hasCrossedRiver = (u.side === 'blue' && u.y < riverY) || (u.side === 'red' && u.y > riverY);
+
+    // Only snap to king tower position if close AND has crossed river via bridge
+    if(distToKing < 200 && hasCrossedRiver) {
+      const snapX = u.lane === 0 ? laneXs()[0] : laneXs()[1];
       const snapY = (u.side === 'blue') ? (kingPos.y + offset) : (kingPos.y - offset);
-      u.x += (snapX - u.x) * 0.3; u.y = snapY;
-    }
-    return;
-  }
-  if(u.lane === 1 && towers[enemyRightId].hp < 1){
-    u.targetId = enemySide + 'King';
-    const kingPos = towerPos(u.targetId);
-    const distToKing = Math.hypot(u.x - kingPos.x, u.y - kingPos.y);
-    // Only snap if close to king tower
-    if(distToKing < 200) {
-      const snapX = laneXs()[1];
-      const snapY = (u.side === 'blue') ? (kingPos.y + offset) : (kingPos.y - offset);
-      u.x += (snapX - u.x) * 0.3; u.y = snapY;
+      u.x += (snapX - u.x) * 0.3;
+      u.y = snapY;
     }
     return;
   }
