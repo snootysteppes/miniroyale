@@ -298,7 +298,10 @@
         💰 Coins: <span id="shopCoinDisplay">0</span>
       </div>
       <div id="upgradeShopCards" style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;max-height:500px;overflow-y:auto;margin:20px 0;"></div>
-      <button class="back-button" onclick="backToMenuFromShop()">Back to Menu</button>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button class="back-button" onclick="backToMenuFromShop()">Back to Menu</button>
+        <button class="back-button" style="background:#d32f2f;" onclick="resetCardLevelsFromShop()">Reset All Levels</button>
+      </div>
     </div>
   </div>
 </div>
@@ -576,6 +579,13 @@ function upgradCard(cardId) {
   playerStats.cardLevels[cardId] = currentLevel + 1;
   savePlayerStats();
   return true;
+}
+
+function resetAllCardLevels() {
+  // Reset all card levels to 1
+  playerStats.cardLevels = {};
+  savePlayerStats();
+  console.log('All card levels have been reset to level 1');
 }
 
 function getTrophyLeague() {
@@ -3803,6 +3813,14 @@ function renderUpgradeShop() {
 function upgradeCardFromShop(cardId) {
   if (upgradCard(cardId)) {
     renderUpgradeShop();
+  }
+}
+
+function resetCardLevelsFromShop() {
+  if (confirm('Are you sure you want to reset all card levels to 1? This cannot be undone.')) {
+    resetAllCardLevels();
+    renderUpgradeShop();
+    alert('All card levels have been reset to level 1');
   }
 }
 
