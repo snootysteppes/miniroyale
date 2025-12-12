@@ -127,18 +127,26 @@
   @keyframes jumpPulse{0%{transform:scale(0.3);opacity:1}100%{transform:scale(2);opacity:0}}
   .kingPrincess{position:absolute;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg, #ff9800, #ff5722);z-index:6;display:grid;place-items:center;font-size:14px;font-weight:bold;color:#fff;box-shadow:0 4px 10px rgba(0,0,0,0.4);opacity:0;transition:opacity 0.5s ease}
   .kingPrincess.active{opacity:1}
-  .home-menu{position:absolute;left:0;right:0;top:0;bottom:0;display:grid;place-items:center;background:var(--bg);z-index:10000}
-  .menu-container{background:var(--ui);border-radius:12px;padding:30px;max-width:500px;text-align:center}
-  .menu-title{font-size:32px;font-weight:bold;margin-bottom:20px;color:#eaf4ff}
-  .menu-button{background:linear-gradient(135deg,#4a6fa5,#3b5998);color:white;border:none;border-radius:8px;padding:12px 24px;font-size:18px;margin:10px;cursor:pointer;transition:transform 0.2s}
-  .menu-button:hover{transform:scale(1.05)}
-  .deck-editor{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}
-  .card-slot{background:rgba(74,111,165,0.2);border:2px dashed #4a6fa5;border-radius:8px;padding:10px;min-height:100px;cursor:pointer}
-  .card-slot.selected{background:rgba(74,111,165,0.4);border-color:#6aa6ff}
-  .card-preview{background:#1a2635;border:2px solid #4f6a86;color:#eaf4ff;border-radius:8px;padding:8px;text-align:center}
-  .card-preview .name{font-weight:bold;font-size:14px;margin-bottom:4px}
-  .card-preview .cost{color:var(--gold);font-size:12px}
-  .deck-info{margin-top:20px;color:#cbd5e1}
+  .home-menu{position:absolute;left:0;right:0;top:0;bottom:0;display:grid;place-items:center;background:linear-gradient(135deg, #0f1822 0%, #1a2838 100%);z-index:10000}
+  .menu-container{background:linear-gradient(135deg, #14202e 0%, #1e3a5f 100%);border-radius:20px;padding:50px;max-width:600px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);border:2px solid rgba(255,255,255,0.1)}
+  .menu-title{font-size:48px;font-weight:900;margin-bottom:30px;background:linear-gradient(135deg,#a785ff,#6aa6ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;text-shadow:0 0 30px rgba(167,133,255,0.3)}
+  .menu-subtitle{font-size:18px;color:#94a3b8;margin-bottom:35px;font-weight:500}
+  .menu-button{background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;border:none;border-radius:12px;padding:16px 40px;font-size:20px;margin:12px;cursor:pointer;transition:all 0.3s ease;box-shadow:0 8px 20px rgba(99,102,241,0.3);font-weight:600;min-width:200px}
+  .menu-button:hover{transform:translateY(-3px) scale(1.05);box-shadow:0 12px 30px rgba(99,102,241,0.5)}
+  .menu-button:active{transform:translateY(-1px) scale(1.02)}
+  .deck-editor{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:25px 0;padding:15px;background:rgba(0,0,0,0.2);border-radius:12px}
+  .card-slot{background:rgba(74,111,165,0.15);border:2px dashed #6366f1;border-radius:10px;padding:12px;min-height:120px;display:flex;align-items:center;justify-content:center;transition:all 0.3s ease;position:relative}
+  .card-slot:hover{background:rgba(74,111,165,0.25);border-color:#8b87ff;transform:scale(1.02)}
+  .card-slot.filled{background:rgba(99,102,241,0.2);border-style:solid;border-color:#a785ff}
+  .card-slot.drag-over{background:rgba(167,133,255,0.3);border-color:#a785ff;transform:scale(1.05)}
+  .card-slot .empty-text{color:#64748b;font-size:12px;text-align:center}
+  .card-preview{background:#1e293b;border:2px solid #6366f1;color:#eaf4ff;border-radius:10px;padding:10px;text-align:center;cursor:grab;transition:all 0.2s ease;width:100%}
+  .card-preview:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(99,102,241,0.4)}
+  .card-preview.dragging{opacity:0.5;cursor:grabbing}
+  .card-preview .emoji{font-size:32px;margin-bottom:6px}
+  .card-preview .name{font-weight:bold;font-size:13px;margin-bottom:4px;color:#e2e8f0}
+  .card-preview .cost{color:var(--gold);font-size:11px;background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:6px;display:inline-block}
+  .deck-info{margin-top:20px;color:#cbd5e1;font-size:14px}
   .start-button{background:linear-gradient(135deg,#ff6b6b,#ff3d3d);color:white;border:none;border-radius:8px;padding:12px 24px;font-size:18px;margin-top:20px;cursor:pointer;transition:transform 0.2s}
   .start-button:hover{transform:scale(1.05)}
   .card-selection{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0;max-height:400px;overflow-y:auto}
@@ -229,6 +237,7 @@
   <div class="home-menu" id="homeMenu">
     <div class="menu-container">
       <div class="menu-title">Mini Royale</div>
+      <div class="menu-subtitle">Build your deck and battle!</div>
       <div class="menu-button" onclick="startGame()">Start Match</div>
       <div class="menu-button" onclick="openDeckEditor()">Edit Deck</div>
     </div>
@@ -236,13 +245,23 @@
 
   <!-- Deck Editor Menu (Hidden by default) -->
   <div class="home-menu" id="deckEditorMenu" style="display:none;">
-    <div class="menu-container">
+    <div class="menu-container" style="max-width:900px;">
       <div class="menu-title">Deck Editor</div>
-      <div class="deck-info">Select 8 cards for your deck</div>
+      <div class="menu-subtitle">Drag cards into your 8 deck slots</div>
+
+      <!-- 8 Deck Slots -->
+      <div class="deck-editor" id="deckSlots"></div>
+
+      <div class="deck-info" id="selectedCount">Deck: 0/8 cards</div>
+
+      <!-- Available Cards -->
+      <div class="deck-info" style="margin-top:30px;margin-bottom:10px;font-size:16px;font-weight:bold;">Available Cards</div>
       <div class="card-selection" id="cardSelection"></div>
-      <div class="deck-info" id="selectedCount">Selected: 0/8</div>
-      <button class="back-button" onclick="backToMenu()">Back</button>
-      <button class="start-button" id="saveDeckButton" onclick="saveDeck()" disabled>Save Deck</button>
+
+      <div style="margin-top:25px;">
+        <button class="back-button" onclick="backToMenu()">Back</button>
+        <button class="start-button" id="saveDeckButton" onclick="saveDeck()" disabled>Save Deck</button>
+      </div>
     </div>
   </div>
 
@@ -599,22 +618,65 @@ function cycleTopCard(){
 /* -------------------------
    DECK EDITOR
    ------------------------- */
+let deckSlots = [];
+let draggedCard = null;
+let draggedFromSlot = null;
+
 function openDeckEditor() {
   homeMenu.style.display = 'none';
   deckEditorMenu.style.display = 'grid';
-  
-  // Clear previous selections
-  cardSelection.innerHTML = '';
-  selectedCards = [];
+
+  // Initialize deck slots (8 slots)
+  deckSlots = new Array(8).fill(null);
+
+  // Load existing deck if available
+  const savedDeck = loadDeckFromStorage();
+  if (savedDeck && savedDeck.length === 8) {
+    deckSlots = [...savedDeck];
+  }
+
+  renderDeckSlots();
+  renderCardSelection();
   updateSelectedCount();
-  
-  // Create card selection UI
+}
+
+function renderDeckSlots() {
+  const deckSlotsContainer = document.getElementById('deckSlots');
+  deckSlotsContainer.innerHTML = '';
+
+  deckSlots.forEach((card, index) => {
+    const slotEl = document.createElement('div');
+    slotEl.className = 'card-slot';
+    slotEl.dataset.slotIndex = index;
+
+    if (card) {
+      slotEl.classList.add('filled');
+      const cardPreview = createDraggableCard(card, true, index);
+      slotEl.appendChild(cardPreview);
+    } else {
+      const emptyText = document.createElement('div');
+      emptyText.className = 'empty-text';
+      emptyText.textContent = `Slot ${index + 1}`;
+      slotEl.appendChild(emptyText);
+    }
+
+    // Drag & Drop events
+    slotEl.addEventListener('dragover', handleSlotDragOver);
+    slotEl.addEventListener('dragleave', handleSlotDragLeave);
+    slotEl.addEventListener('drop', (e) => handleSlotDrop(e, index));
+
+    deckSlotsContainer.appendChild(slotEl);
+  });
+}
+
+function renderCardSelection() {
+  const cardSelection = document.getElementById('cardSelection');
+  cardSelection.innerHTML = '';
+
   allCards.forEach(card => {
     const cardEl = document.createElement('div');
     cardEl.className = 'selectable-card';
-    cardEl.dataset.cardId = card.id;
 
-    // Add emoji/icon if available
     if(card.emoji){
       const emojiEl = document.createElement('div');
       emojiEl.className = 'selectable-card-emoji';
@@ -633,41 +695,102 @@ function openDeckEditor() {
     cardEl.appendChild(nameEl);
     cardEl.appendChild(costEl);
 
-    cardEl.addEventListener('click', () => toggleCardSelection(card));
+    // Make cards draggable
+    cardEl.draggable = true;
+    cardEl.addEventListener('dragstart', (e) => {
+      draggedCard = card;
+      draggedFromSlot = null;
+      cardEl.style.opacity = '0.5';
+    });
+    cardEl.addEventListener('dragend', (e) => {
+      cardEl.style.opacity = '1';
+    });
 
     cardSelection.appendChild(cardEl);
   });
 }
 
-let selectedCards = [];
+function createDraggableCard(card, fromSlot = false, slotIndex = null) {
+  const cardPreview = document.createElement('div');
+  cardPreview.className = 'card-preview';
+  cardPreview.draggable = true;
 
-function toggleCardSelection(card) {
-  const cardEl = document.querySelector(`[data-card-id="${card.id}"]`);
-  const index = selectedCards.findIndex(c => c.id === card.id);
-  
-  if (index === -1) {
-    // Add card if not already selected and under limit
-    if (selectedCards.length < 8) {
-      selectedCards.push(card);
-      cardEl.classList.add('selected');
-    }
-  } else {
-    // Remove card if already selected
-    selectedCards.splice(index, 1);
-    cardEl.classList.remove('selected');
+  if(card.emoji){
+    const emojiEl = document.createElement('div');
+    emojiEl.className = 'emoji';
+    emojiEl.textContent = card.emoji;
+    cardPreview.appendChild(emojiEl);
   }
-  
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'name';
+  nameEl.textContent = card.name;
+
+  const costEl = document.createElement('div');
+  costEl.className = 'cost';
+  costEl.textContent = `${card.cost}`;
+
+  cardPreview.appendChild(nameEl);
+  cardPreview.appendChild(costEl);
+
+  cardPreview.addEventListener('dragstart', (e) => {
+    draggedCard = card;
+    draggedFromSlot = fromSlot ? slotIndex : null;
+    cardPreview.classList.add('dragging');
+  });
+
+  cardPreview.addEventListener('dragend', (e) => {
+    cardPreview.classList.remove('dragging');
+  });
+
+  return cardPreview;
+}
+
+function handleSlotDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+
+function handleSlotDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function handleSlotDrop(e, slotIndex) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+
+  if (!draggedCard) return;
+
+  // If dragging from another slot, swap cards
+  if (draggedFromSlot !== null) {
+    const temp = deckSlots[slotIndex];
+    deckSlots[slotIndex] = draggedCard;
+    deckSlots[draggedFromSlot] = temp;
+  } else {
+    // Adding new card from selection
+    deckSlots[slotIndex] = draggedCard;
+  }
+
+  draggedCard = null;
+  draggedFromSlot = null;
+
+  renderDeckSlots();
   updateSelectedCount();
 }
 
 function updateSelectedCount() {
-  selectedCount.textContent = `Selected: ${selectedCards.length}/8`;
-  saveDeckButton.disabled = selectedCards.length !== 8;
+  const filledSlots = deckSlots.filter(card => card !== null).length;
+  const selectedCount = document.getElementById('selectedCount');
+  selectedCount.textContent = `Deck: ${filledSlots}/8 cards`;
+
+  const saveDeckButton = document.getElementById('saveDeckButton');
+  saveDeckButton.disabled = filledSlots !== 8;
 }
 
 function saveDeck() {
-  if (selectedCards.length === 8) {
-    currentDeck = [...selectedCards];
+  const filledSlots = deckSlots.filter(card => card !== null).length;
+  if (filledSlots === 8) {
+    currentDeck = [...deckSlots];
     saveDeckToStorage(currentDeck);
     backToMenu();
   }
@@ -1295,12 +1418,8 @@ function forceRetargetAfterTowerDeath(destroyedTowerSide){
       if(towers[enemyLeftId].hp < 1){
         const enemyKing = (u.side === 'blue') ? 'redKing' : 'blueKing';
         u.targetId = enemyKing;
-        const pos = towerPos(enemyKing);
-        const offset = 12;
         const snapX = laneXs()[0];
-        const snapY = (u.side === 'blue') ? (pos.y + offset) : (pos.y - offset);
         u.x += (snapX - u.x) * 0.6;
-        u.y = snapY;
         continue;
       }
     }
@@ -1309,24 +1428,16 @@ function forceRetargetAfterTowerDeath(destroyedTowerSide){
       if(towers[enemyRightId].hp < 1){
         const enemyKing = (u.side === 'blue') ? 'redKing' : 'blueKing';
         u.targetId = enemyKing;
-        const pos = towerPos(enemyKing);
-        const offset = 12;
         const snapX = laneXs()[1];
-        const snapY = (u.side === 'blue') ? (pos.y + offset) : (pos.y - offset);
         u.x += (snapX - u.x) * 0.6;
-        u.y = snapY;
         continue;
       }
     }
 
     if(bothCrownsDown){
       u.targetId = kingId;
-      const pos = towerPos(kingId);
-      const offset = 12;
       const snapX = (u.lane === 0 ? laneXs()[0] : laneXs()[1]);
-      const snapY = (u.side === 'blue') ? (pos.y + offset) : (pos.y - offset);
       u.x += (snapX - u.x) * 0.6;
-      u.y = snapY;
       continue;
     }
 
@@ -2098,7 +2209,33 @@ function tickUnit(u, dt){
           // Move towards tower if not in range
           const dx = pos.x - u.x;
           const dy = pos.y - u.y;
-          moveWithBridgePathing(u, (dx/dist) * u.speed * u.rageMultiplier * dt, (dy/dist) * u.speed * u.rageMultiplier * dt, dt);
+
+          // Special handling for king tower - must use bridges
+          const rect = board.getBoundingClientRect();
+          const riverY = rect.height * 0.5;
+          const bridgeHalf = bridgeHalfHeight();
+          const bridgeTop = riverY - bridgeHalf;
+          const bridgeBottom = riverY + bridgeHalf;
+
+          const isKingTarget = u.targetId && u.targetId.toLowerCase().includes('king');
+          const needsToCross = (u.side === 'blue' && u.y > bridgeBottom) || (u.side === 'red' && u.y < bridgeTop);
+
+          if (isKingTarget && needsToCross) {
+            // Force unit to go to nearest bridge first
+            const [bxLeft, bxRight] = bridgeXs();
+            const targetBridgeX = Math.abs(u.x - bxLeft) < Math.abs(u.x - bxRight) ? bxLeft : bxRight;
+            const bridgeDx = targetBridgeX - u.x;
+            const bridgeDy = (riverY - u.y);
+            const bridgeDist = Math.hypot(bridgeDx, bridgeDy);
+
+            if (bridgeDist > 5) {
+              moveWithBridgePathing(u, (bridgeDx/bridgeDist) * u.speed * u.rageMultiplier * dt, (bridgeDy/bridgeDist) * u.speed * u.rageMultiplier * dt, dt);
+            } else {
+              moveWithBridgePathing(u, (dx/dist) * u.speed * u.rageMultiplier * dt, (dy/dist) * u.speed * u.rageMultiplier * dt, dt);
+            }
+          } else {
+            moveWithBridgePathing(u, (dx/dist) * u.speed * u.rageMultiplier * dt, (dy/dist) * u.speed * u.rageMultiplier * dt, dt);
+          }
           return;
         }
       } else {
@@ -2271,14 +2408,14 @@ function tickUnit(u, dt){
   if(u.lane === 0 && towers[enemyLeftId].hp < 1){
     u.targetId = enemySide + 'King';
     const snapX = laneXs()[0];
-    const snapY = (u.side === 'blue') ? (towerPos(u.targetId).y + offset) : (towerPos(u.targetId).y - offset);
-    u.x += (snapX - u.x) * 0.6; u.y = snapY; return;
+    u.x += (snapX - u.x) * 0.6;
+    return;
   }
   if(u.lane === 1 && towers[enemyRightId].hp < 1){
     u.targetId = enemySide + 'King';
     const snapX = laneXs()[1];
-    const snapY = (u.side === 'blue') ? (towerPos(u.targetId).y + offset) : (towerPos(u.targetId).y - offset);
-    u.x += (snapX - u.x) * 0.6; u.y = snapY; return;
+    u.x += (snapX - u.x) * 0.6;
+    return;
   }
 
   if((reached || withinThreshold) && horizontalDist <= 80){
