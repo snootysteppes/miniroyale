@@ -2616,16 +2616,43 @@ function tickUnit(u, dt){
     const kingPos = towerPos(u.targetId);
     const distToKing = Math.hypot(u.x - kingPos.x, u.y - kingPos.y);
 
-    // Check if unit has crossed the river/bridge
+    // Check if unit has crossed the river via bridge
     const riverY = rect.height * 0.5;
-    const hasCrossedRiver = (u.side === 'blue' && u.y < riverY) || (u.side === 'red' && u.y > riverY);
+    const bridgeHalf = bridgeHalfHeight();
+    const bridgeTop = riverY - bridgeHalf;
+    const bridgeBottom = riverY + bridgeHalf;
+    const hasCrossedViaBridge = (u.side === 'blue' && u.y < bridgeTop) || (u.side === 'red' && u.y > bridgeBottom);
 
-    // Only snap to king tower position if close AND has crossed river via bridge
-    if(distToKing < 200 && hasCrossedRiver) {
+    // If not yet crossed via bridge, navigate toward bridge first
+    if(!hasCrossedViaBridge) {
+      const needsToCross = (u.side === 'blue' && u.y > bridgeTop) || (u.side === 'red' && u.y < bridgeBottom);
+      if(needsToCross) {
+        const [bxLeft, bxRight] = bridgeXs();
+        const targetBridgeX = u.lane === 0 ? bxLeft : bxRight;
+        const dx = targetBridgeX - u.x;
+        const dy = (u.side === 'blue' ? bridgeTop : bridgeBottom) - u.y;
+        const d = Math.hypot(dx, dy);
+        if(d > 5) {
+          moveWithBridgePathing(u, (dx/d) * u.speed * u.rageMultiplier * dt, (dy/d) * u.speed * u.rageMultiplier * dt, dt);
+          return;
+        }
+      }
+    }
+
+    // Only snap to king tower position if close AND has fully crossed river via bridge
+    if(distToKing < 200 && hasCrossedViaBridge) {
       const snapX = u.lane === 0 ? laneXs()[0] : laneXs()[1];
       const snapY = (u.side === 'blue') ? (kingPos.y + offset) : (kingPos.y - offset);
       u.x += (snapX - u.x) * 0.3;
       u.y = snapY;
+    } else if(hasCrossedViaBridge) {
+      // Move toward king tower after crossing bridge
+      const dx = kingPos.x - u.x;
+      const dy = kingPos.y - u.y;
+      const d = Math.hypot(dx, dy);
+      if(d > 5) {
+        moveWithBridgePathing(u, (dx/d) * u.speed * u.rageMultiplier * dt, (dy/d) * u.speed * u.rageMultiplier * dt, dt);
+      }
     }
     return;
   }
